@@ -64,7 +64,7 @@ async function applyProfileUpdatesToAll(uid, newDisplayName, newPhotoURL) {
   }
 
   await Promise.all(updatePromises);
-  console.log("✅ All user content updated with new profile info");
+  console.log("profile updated");
 }
 
 function fileToBase64(file, maxSize = 200 * 1024) {
