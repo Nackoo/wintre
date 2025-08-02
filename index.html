@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta property="og:title" content="Wintre">
+  <meta property="og:description" content="From breaking news and entertainment to sports and politics.">
+  <meta property="og:image" content="/wintre">
+  <link rel="icon" type="image/png" href="image/W.png">
+  <title>Wintre</title>
+  <link rel="stylesheet" href="style/index.css">
+  <link rel="stylesheet" href="style/user.css">
+</head>
+
+<body>
+
+  <div id="loadingScreen">
+    <img src="image/W.png">
+    <p id="log">rendering wints (0)</p>
+  </div>
+
+  <div id="bookmarkOverlay" class="useroverlay hidden">
+    <div class="user-box">
+      <header>
+        <div class="flex">
+          <button onclick="hidebookmark()" class="close-btn" style="margin-left:auto;position:absolute;top:24px;right:0;"><img src="image/x.svg"></button>
+        </div>
+        <h2>bookmarks</h2>
+      </header>
+      <div id="bookmarkList"></div>
+      <div id="bookmarkLoadMore" class="read-more link">Load more</div>
+      <br><br><br>
+    </div>
+  </div>
+
+  <div id="profileOverlay" class="useroverlay hidden">
+    <div class="user-box">
+      <header>
+        <button onclick="hideprofile()" class="close-btn" style="position:absolute;top:20px;left:0;"><img src="image/leftArrow.svg"></button>
+        <h2 style="text-align:right;">About you</h2>
+      </header>
+      <div id="my-banner" class="flex banner">
+        <div id="my-pfp"></div>
+      </div>
+      <h2 id="my-name" style="margin-top:80px;"></h2>
+      <p id="my-description"></p>
+      <p style="display:flex;align-items:center;"><img src="image/calendar.svg" style="margin-right:6px"><span id="my-creation"></span></p>
+      <p style="border-bottom: var(--border); padding-bottom: 30px; margin-bottom: 0"><span id="my-ers"><span id="my-followers" style="font-weight:bold;">0</span> <span style="color:grey">followers</span></span> <span id="my-ing"><span id="my-following" style="font-weight:bold;">0</span> <span style="color:grey">following</span></span></p>
+      <div class="tab-container">
+        <button class="tab2 active" data-target="youList">Wints</button>
+        <button class="tab2" data-target="mentionedList">Mentioned</button>
+      </div>
+      <div id="youList" class="tab-content"></div>
+      <div id="mentionedList" class="tab-content hidden"></div>
+      <div id="youLoadMore" class="read-more link">Load more</div>
+      <br><br><br>
+    </div>
+  </div>
+
+  <div id="profileSubOverlay" class="useroverlay hidden">
+    <div class="sub-user-box">
+      <div class="flex">
+        <button onclick="hidesettings()" class="close-btn" style="margin-left:auto;position:absolute;top:0;right:0;">
+          <img src="image/x.svg" alt="Close">
+        </button>
+      </div>
+
+      <h4>avatar</h4>
+      <div id="ava-preview"></div>
+      <input type="file" id="ava-input" class="hidden-input" accept="image/*" />
+      <br><label class="button" for="ava-input">upload a file</label>
+
+      <h4>username</h4>
+      <input type="text" id="name-edit">
+
+      <h4>description</h4>
+      <textarea id="description-edit"></textarea>
+
+      <h4>banner</h4>
+      <div id="banner-preview"></div>
+      <input type="file" id="banner-input" class="hidden-input" accept="image/*" />
+      <br><label class="button" for="banner-input">upload a file</label>
+
+      <br><br>
+      <button onclick="window.open('/user/tos', '_blank', 'noopener')" style="background:transparent;width:100%;padding:0 15px;border-radius:10px;border:var(--border);display:flex;gap:8px;align-items:center;">
+        <img src="image/arrow-up.svg">
+        <p style="color:var(--color);">Wintre ToS</a>
+      </button>
+      <br>
+      <div class="flex">
+        <button id="logout">logout</button>
+        <button style="margin-left: auto;" id="save-profile-changes">save changes</button>
+      </div>
+      <br><br><br>
+    </div>
+  </div>
+
+  <div id="userOverlay" class="useroverlay hidden">
+    <div class="user-box">
+      <br>
+      <header style="display: flex; gap: 15px;padding-bottom:15px">
+        <button onclick="hideuser()" style="background: none;"><img src="image/x.svg"></button></img>
+        <input type="text" placeholder="search anything"></input>
+      </header>
+      <div class="tab-container">
+        <button class="tab1 active" data-target="tweetsView">Wints</button>
+        <button class="tab1" data-target="usersView">Users</button>
+        <button class="tab1" data-target="tagsView">tags</button>
+      </div>
+      <div id="tweetsView" class="tab-content"><span style="color:grey">
+          <p style="color:gray;">enter at least 3 characters to search Wints</p>
+        </span></div>
+      <div id="usersView" class="tab-content hidden"></div>
+      <div id="tagsView" class="tab-content hidden"></div>
+      <br><br><br>
+    </div>
+  </div>
+
+  <div id="tagSubOverlay" class="useroverlay hidden suboverlay">
+    <div class="user-box">
+      <header style="display:flex">
+        <button onclick="document.getElementById('tagSubOverlay').classList.add('hidden');" class="close-btn"><img src="image/leftArrow.svg"></button>
+        <h2 style="margin-left:auto;" id="tagId"></h2>
+      </header>
+      <div id="tagstweet"></div>
+    </div>
+  </div>
+
+  <div id="userSubOverlay" class="useroverlay hidden suboverlay">
+    <div class="user-box">
+      <header>
+        <button onclick="closeUser()" class="close-btn" style="position:absolute;top:20px;left:0;"><img src="image/leftArrow.svg"></button>
+        <h2 style="text-align:right;" id="who"></h2>
+      </header>
+      <div id="user-banner" class="flex banner">
+        <div id="user-pfp"></div>
+        <button id="followBtn" class="follow-btn">Follow</button>
+      </div>
+      <h2 id="user-name" style="margin-top:80px;"></h2>
+      <p id="user-description"></p>
+      <p style="display:flex;align-items:center;"><img src="image/calendar.svg" style="margin-right:6px"><span id="user-creation"></span></p>
+      <p style="border-bottom: var(--border); padding-bottom: 30px; margin-bottom: 30px"><span id="ers"><span id="followers" style="font-weight:bold;">0</span> <span style="color:grey">followers</span></span> <span id="ing"><span id="following" style="font-weight:bold;">0</span> <span style="color:grey">following</span></span></p>
+      <div id="userList"></div>
+      <div id="userLoadMore" class="read-more link">Load more</div>
+      <br><br><br>
+    </div>
+  </div>
+
+  <div id="flex">
+    <div class="flex-grow">
+      <div class="container">
+        <button onclick="
+      document.getElementById('tweetOverlay').classList.remove('hidden');
+      document.getElementById('flex').classList.add('yes');
+      document.getElementById('flex-grow').classList.add('yes');
+    " id="post"><img src="image/write.svg"></button>
+        <header style="z-index: 2; position: fixed; transition: top 0.4s ease;" id="timeline-header">
+          <div class="tab-container" id="tab-container-header">
+            <button class="tab active" data-target="timeline">All</button>
+            <button class="tab" data-target="following1">following</button>
+          </div>
+        </header>
+        <br><br><br>
+        <div id="timeline"></div>
+        <div id="following1" class="hidden"></div>
+        <br><br><br>
+      </div>
+    </div>
+
+    <div class="flex-grow" id="sidebar">
+      <div id="retweetOverlay" class="overlay hidden">
+        <div class="comment-box">
+          <h3>Rewint</h3>
+          <div id="retweetOriginal" style="margin-bottom:20px;"></div>
+          <textarea id="retweetText" placeholder="what do you think...?" style="width:100%;height:100px;"></textarea>
+          <div class="attachment" id="retweetPreview"></div>
+          <div class="flex">
+            <button id="sendRetweet">Post</button>
+            <label class="custom-file-btn" for="retweetMediaInput"><img src="image/upload.svg"></label>
+            <input type="file" id="retweetMediaInput" class="hidden-input" accept="image/*" />
+            <button class="no-bg" style="margin-left: auto;" onclick="
+        document.getElementById('retweetText').value = '';
+        document.getElementById('retweetOverlay').classList.add('hidden');
+        document.getElementById('flex').classList.remove('yes');
+        document.getElementById('flex-grow').classList.remove('yes');
+      ">Cancel</button>
+          </div>
+          <br><br><br>
+        </div>
+      </div>
+
+      <div id="commentOverlay" class="overlay hidden">
+        <div class="comment-box">
+          <div class="flex">
+            <button id="closeComment" style="margin-left: auto;" class="close-btn"><img src="image/x.svg"></button>
+          </div>
+          <div class="tweet" id="commentTweet"></div>
+          <textarea id="commentInput" placeholder="hmm...?"></textarea>
+          <div class="attachment" id="commentPreview"></div>
+          <div class="flex">
+            <button id="sendComment">Post</button>
+            <label class="custom-file-btn" for="commentMediaInput"><img src="image/upload.svg"></label>
+            <input type="file" id="commentMediaInput" class="comment-media-input hidden-input" accept="image/*" />
+          </div>
+          <div id="commentList"></div>
+          <div class="flex">
+            <div id="replyInputBox" class="hidden">
+              <textarea id="replyInput" placeholder="thoughts...?"></textarea>
+              <button id="sendReply">Reply</button>
+            </div>
+          </div>
+          <br><br><br>
+        </div>
+      </div>
+
+      <div id="tweetOverlay" class="overlay hidden">
+        <div class="comment-box">
+          <textarea id="tweetInput" style="height:150px;margin-top:20px;" placeholder="What's cookin'?"></textarea>
+          <div class="attachment" id="tweetPreview"></div>
+          <div class="flex">
+            <button id="postBtn" style="padding:7px 15px" onclick="
+        document.getElementById('tweetOverlay').classList.add('hidden');
+        document.getElementById('flex').classList.remove('yes');
+        document.getElementById('flex-grow').classList.remove('yes');
+      ">Wint</button>
+            <label class="custom-file-btn" for="mediaInput"><img src="image/upload.svg"></label>
+            <input type="file" id="mediaInput" class="hidden-input" accept="image/*,video/*" />
+            <button class="no-bg" style="margin-left: auto;" onclick="
+  document.getElementById('tweetInput').value = ''; 
+  document.getElementById('tweetOverlay').classList.add('hidden');
+  document.getElementById('flex').classList.remove('yes');
+  document.getElementById('flex-grow').classList.remove('yes');
+       ">cancel</button>
+          </div>
+        </div>
+        <br><br><br>
+      </div>
+    </div>
+  </div>
+  <div id="mediaOverlay" class="hidden">
+    <div id="overlayContent"></div>
+    <button id="closeOverlay">✕</button>
+  </div>
+
+  <div class="smallbar">
+    <img src="image/home-filled.svg">
+    <img src="image/home.svg" class="hidden">
+    <img src="image/bookmark.svg">
+    <img src="image/bookmark-filled.svg" class="hidden">
+    <img src="image/user.svg">
+    <img src="image/user-filled.svg" class="hidden">
+    <img src="image/search.svg">
+    <img src="image/search-filled.svg" class="hidden">
+    <img src="image/settings.svg">
+    <img src="image/settings-filled.svg" class="hidden">
+  </div>
+
+  <script type="module" src="script/main.js"></script>
+  <script type="module" src="script/index.js"></script>
+  <script type="module" src="script/bookmark.js"></script>
+  <script type="module" src="script/profile.js"></script>
+  <script type="module" src="script/user.js"></script>
+  <script src="script/nonsense.js"></script>
+
+</body>
+
+</html>
