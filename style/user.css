@@ -1,0 +1,255 @@
+@media (min-width: 700px) {
+  .smallbar img[src="image/home.svg"] {
+    margin-top: 20px
+  }
+
+  .user-box {
+    border-right: var(--border);
+    border-left: var(--border);
+  }
+}
+
+@media (max-width: 700px) {
+  .smallbar {
+    position: fixed;
+    transition: bottom 0.4s ease;
+  }
+}
+
+#timeline-header {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+#tab-container-header {
+  width: 100%;
+  max-width: 555px;
+}
+
+.banner {
+  background-position: center;
+  background-repeat: no-repeat;
+  backgroundL-size: cover;
+  height: 180px;
+}
+
+#my-pfp,
+#user-pfp {
+  height: 123px;
+  width: 123px;
+  border-radius: 50%;
+  position: absolute;
+  top: 110px;
+  left: 20px;
+  object-fit: cover;
+  object-position: center;
+}
+
+.follow-btn {
+  position: absolute;
+  bottom: -50px !important;
+  right: 10px;
+  padding: 7px 20px;
+}
+
+#edit {
+  height: 30px;
+  width: 30px;
+  padding: 3px;
+  background: rgba(0, 0, 0, 0.5);
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.sub-useroverlay {
+  z-index: 8;
+}
+
+.sub-user-box {
+  position: fixed;
+  padding: 20px;
+  width: 100%;
+  max-width: 480px;
+  border-radius: 15px;
+  min-height: 300px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--dark);
+  color: var(--color);
+  position: relative;
+  border: var(--border);
+}
+
+#banner-preview {
+  width: 100%;
+  height: 150px;
+  box-sizing: border-box;
+  background-size: cover;
+  background-position: center;
+  border-radius: 15px;
+}
+
+#ava-preview {
+  height: 130px;
+  width: 130px;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.button {
+  padding: 7px;
+  background: white;
+  border-radius: 50px;
+  border: none;
+  color: black;
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+#hr-profile {
+  display: none;
+}
+
+#logout {
+  background: none;
+  border: 1px solid #db1d23;
+  color: #db1d23;
+  padding: 7px 20px;
+  font-weight: bold;
+}
+
+#logout:hover {
+  background: #db1d23;
+  border: 1px solid white;
+  color: white;
+}
+
+.tab-container {
+  display: flex;
+}
+
+.tab,
+.tab1,
+.tab2 {
+  position: relative;
+  flex: 1;
+  padding: 10px;
+  margin: 20px 0;
+  border-radius: 0 !important;
+  background: none !important;
+  border: none;
+  font-weight: bold;
+  color: var(--color) !important;
+  cursor: pointer;
+}
+
+.tab.active::after,
+.tab1.active::after,
+.tab2.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80px;
+  height: 5px;
+  background-color: #1d9bf0;
+  border-radius: 2px;
+}
+
+.tab-content {
+  padding: 15px;
+}
+
+.hidden {
+  display: none;
+}
+
+#usersView,
+#tweetsView,
+#tagsView {
+  padding: 0;
+}
+
+#my-creation,
+#user-creation {
+  color: grey;
+}
+
+#my-ing,
+#my-ers,
+#ing,
+#ers {
+  cursor: pointer;
+}
+
+#youList,
+#mentionedList {
+  padding: 0;
+}
+
+.spoiler-text {
+  background: #21262d;
+  color: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.3s ease, opacity 0.3s ease;
+  padding: 2px 4px;
+  opacity: 1;
+}
+
+.spoiler-text:hover {
+  background: #21262d;
+}
+
+.spoiler-text.revealed {
+  color: inherit;
+  opacity: 0;
+}
+
+.spoiler-media {
+  position: relative;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.spoiler-media .spoiler-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: bold;
+  text-transform: uppercase;
+  font-size: 15px;
+  z-index: 1;
+  visibility: visible;
+  opacity: 1;
+  transition: visibility 0.2s ease, opacity 0.2s ease;
+}
+
+.spoiler-media.revealed .spoiler-overlay {
+  visibility: hidden;
+  opacity: 0;
+}
+
+.spoilertxt {
+  padding: 5px 7px;
+  background: var(--normal);
+  border-radius: 8px;
+}
