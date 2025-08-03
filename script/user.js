@@ -223,8 +223,7 @@ async function fetchUsers(reset = false) {
     item.style.cssText = "display:flex;gap:10px;padding:15px;border-bottom:var(--border);align-items:center";
 
     item.innerHTML = `
-    <img src="${data.photoURL || 'image/default-avatar.png'}"
-         style="width:40px;height:40px;border-radius:50%;object-fit:cover;align-self:flex-start;">
+    <img src="${data.photoURL}" onerror="this.src='image/default-avatar.jpg'" style="width:40px;height:40px;border-radius:50%;object-fit:cover;align-self:flex-start;">
     <div style="flex:1">
       <strong>${escapeHTML(data.displayName || "Unnamed")}</strong>
       <p style="margin:5px 0;color:grey">${escapeHTML(data.description || "")}</p>
