@@ -17,7 +17,7 @@
 
   <div id="loadingScreen">
     <img src="image/W.png">
-    <p id="log">rendering wints (0)</p>
+    <p id="log"></p>
   </div>
 
   <div id="bookmarkOverlay" class="useroverlay hidden">
@@ -148,27 +148,23 @@
   </div>
 
   <div id="flex">
-    <div class="flex-grow">
-      <div class="container">
-        <button onclick="
+    <div class="container">
+      <button onclick="
       document.getElementById('tweetOverlay').classList.remove('hidden');
-      document.getElementById('flex').classList.add('yes');
-      document.getElementById('flex-grow').classList.add('yes');
     " id="post"><img src="image/write.svg"></button>
-        <header style="z-index: 2; position: fixed; transition: top 0.4s ease;" id="timeline-header">
-          <div class="tab-container" id="tab-container-header">
-            <button class="tab active" data-target="timeline">All</button>
-            <button class="tab" data-target="following1">following</button>
-          </div>
-        </header>
-        <br><br><br>
-        <div id="timeline"></div>
-        <div id="following1" class="hidden"></div>
-        <br><br><br>
-      </div>
+      <header style="z-index: 2; position: fixed; transition: top 0.4s ease;" id="timeline-header">
+        <div class="tab-container" id="tab-container-header">
+          <button class="tab active" data-target="timeline">All</button>
+          <button class="tab" data-target="following1">following</button>
+        </div>
+      </header>
+      <br><br><br>
+      <div id="timeline"></div>
+      <div id="following1" class="hidden"></div>
+      <br><br><br>
     </div>
 
-    <div class="flex-grow" id="sidebar">
+    <div id="sidebar">
       <div id="retweetOverlay" class="overlay hidden">
         <div class="comment-box">
           <h3>Rewint</h3>
@@ -182,12 +178,29 @@
             <button class="no-bg" style="margin-left: auto;" onclick="
         document.getElementById('retweetText').value = '';
         document.getElementById('retweetOverlay').classList.add('hidden');
-        document.getElementById('flex').classList.remove('yes');
-        document.getElementById('flex-grow').classList.remove('yes');
+        document.body.classList.remove('no-scroll');
       ">Cancel</button>
           </div>
           <br><br><br>
         </div>
+      </div>
+
+      <div id="tweetViewer" class="useroverlay hidden">
+        <header style="position:fixed;display:flex;justify-content:center;background:transparent;">
+          <div class="flex" style="margin-top:-1px;padding:0 20px;width:100%;max-width:555px;background:black;">
+            <button class="close-btn" onclick="
+          document.body.classList.remove('no-scroll');
+          document.getElementById('tweetViewer').classList.add('hidden');
+          "><img src="image/leftArrow.svg"></button>
+            <h2 style="margin-left:auto;">post</h2>
+          </div>
+        </header>
+        <div class="user-box">
+          <br><br><br><br>
+          <div id="appendTweet"></div>
+          <br><br><br>
+        </div>
+
       </div>
 
       <div id="commentOverlay" class="overlay hidden">
@@ -198,7 +211,8 @@
           <div class="tweet" id="commentTweet"></div>
           <textarea id="commentInput" placeholder="hmm...?"></textarea>
           <div class="attachment" id="commentPreview"></div>
-          <div class="flex">
+          <div class="flex" id="comment-status"></div>
+          <div class="flex" id="skibidi">
             <button id="sendComment">Post</button>
             <label class="custom-file-btn" for="commentMediaInput"><img src="image/upload.svg"></label>
             <input type="file" id="commentMediaInput" class="comment-media-input hidden-input" accept="image/*" />
@@ -218,19 +232,20 @@
         <div class="comment-box">
           <textarea id="tweetInput" style="height:150px;margin-top:20px;" placeholder="What's cookin'?"></textarea>
           <div class="attachment" id="tweetPreview"></div>
+          <select id="replyPermission">
+            <option value="everyone">Everyone can comment</option>
+            <option value="following">People you follow can comment</option>
+            <option value="mentioned">people you mention can comment</option>
+          </select>
           <div class="flex">
             <button id="postBtn" style="padding:7px 15px" onclick="
         document.getElementById('tweetOverlay').classList.add('hidden');
-        document.getElementById('flex').classList.remove('yes');
-        document.getElementById('flex-grow').classList.remove('yes');
       ">Wint</button>
             <label class="custom-file-btn" for="mediaInput"><img src="image/upload.svg"></label>
             <input type="file" id="mediaInput" class="hidden-input" accept="image/*,video/*" />
             <button class="no-bg" style="margin-left: auto;" onclick="
   document.getElementById('tweetInput').value = ''; 
   document.getElementById('tweetOverlay').classList.add('hidden');
-  document.getElementById('flex').classList.remove('yes');
-  document.getElementById('flex-grow').classList.remove('yes');
        ">cancel</button>
           </div>
         </div>
@@ -261,6 +276,7 @@
   <script type="module" src="script/bookmark.js"></script>
   <script type="module" src="script/profile.js"></script>
   <script type="module" src="script/user.js"></script>
+  <script type="module" src="script/tweetViewer.js"></script>
   <script src="script/nonsense.js"></script>
 
 </body>
