@@ -115,10 +115,17 @@ async function loadYourTweets() {
 
   const postsRef = collection(db, "users", user.uid, "posts");
   const allPosts = await getDocs(postsRef);
-  const tweetIds = allPosts.docs.map(doc => doc.id);
+  const tweetIds = [];
+
+  for (const docSnap of allPosts.docs) {
+    const tweetId = docSnap.id;
+    const tweetDoc = await getDoc(doc(db, "tweets", tweetId));
+    if (tweetDoc.exists()) tweetIds.push(tweetId);
+  }
+
 
   if (tweetIds.length === 0) {
-    youList.innerHTML = `<p id="start" style="color:grey;">post to get started</p>`;
+    youList.innerHTML = `<p id="start" style="color:grey;text-align:center">post to get started</p>`;
     youLoadMore.style.display = "none";
     return;
   } else {
@@ -289,6 +296,7 @@ saveButton.addEventListener("click", async () => {
     return;
   }
 
+  document.body.classList.remove('no-scroll');
   document.querySelector('.smallbar img[src="image/settings-filled.svg"]').classList.add('hidden');
   document.querySelector('.smallbar img[src="image/settings.svg"]').classList.remove('hidden');
   document.querySelector('.smallbar img[src="image/home-filled.svg"]').classList.remove('hidden');
@@ -320,5 +328,4 @@ saveButton.addEventListener("click", async () => {
   }
 
   await applyProfileUpdatesToAll(uid, newName, newAvatar);
-  document.body.classList.remove('hidden');
 });
