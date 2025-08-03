@@ -5,6 +5,7 @@ const user = document.getElementById('userOverlay');
 const usersub = document.getElementById('userSubOverlay');
 const tag = document.getElementById('tagSubOverlay');
 const follow = document.getElementById('followOverlay');
+const viewer = document.getElementById('tweetViewer');
 
 const bookmarksvg = document.querySelector('.smallbar img[src="image/bookmark.svg"]');
 const homesvg = document.querySelector('.smallbar img[src="image/home.svg"]');
@@ -26,6 +27,7 @@ if (bookmarksvg) {
     usersub?.classList.add('hidden');
     tag?.classList.add('hidden');
     follow?.classList.add('hidden');
+    viewer?.classList.add('hidden');
 
     settingsfilled?.classList.add('hidden');
     homefilled?.classList.add('hidden');
@@ -77,6 +79,7 @@ if (usersvg) {
     usersub?.classList.add('hidden');
     tag?.classList.add('hidden');
     follow?.classList.add('hidden');
+    viewer?.classList.add('hidden');
 
     settingsfilled?.classList.add('hidden');
     homefilled?.classList.add('hidden');
@@ -101,6 +104,7 @@ if (searchsvg) {
     profilesub?.classList.add('hidden');
     usersub?.classList.add('hidden');
     tag?.classList.add('hidden');
+    viewer?.classList.add('hidden');
 
     settingsfilled?.classList.add('hidden');
     homefilled?.classList.add('hidden');
@@ -126,6 +130,7 @@ if (settingssvg) {
     usersub?.classList.add('hidden');
     tag?.classList.add('hidden');
     follow?.classList.add('hidden');
+    viewer?.classList.add('hidden');
 
     homefilled?.classList.add('hidden');
     bookmarkfilled?.classList.add('hidden');
