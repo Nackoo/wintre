@@ -253,3 +253,35 @@
   background: var(--normal);
   border-radius: 8px;
 }
+
+#comment-status {
+  color: grey;
+  gap: 8px;
+  margin-bottom: 20px;
+  font-size: 13px;
+}
+
+#replyPermission {
+  margin-bottom: 13px;
+  background: black;
+  border-radius: 15px;
+  padding: 10px;
+  border: var(--border);
+  color: white;
+}
+
+#tweetViewer .tweet {
+  border: var(--border);
+  !important;
+  border-radius: 15px;
+}
+
+#tweetViewer .retweet {
+  border-radius: 15px !important;
+}
+
+@media (max-width: 700px) {
+  #tweetViewer .tweet {
+    border-radius: 0;
+  }
+}
