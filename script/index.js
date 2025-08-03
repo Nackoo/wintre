@@ -1,4 +1,4 @@
-import { app, auth, db, storage, initializeApp, getAuth, onAuthStateChanged, getFirestore, collection, addDoc, query, orderBy, limit, startAfter, where, onSnapshot, doc, setDoc, deleteDoc, getDoc, getDocs, getCountFromServer, getStorage, ref, uploadBytes, getDownloadURL, updateDoc } from "./firebase.js";
+import { app, auth, db, storage, initializeApp, getAuth, increment, onAuthStateChanged, getFirestore, collection, addDoc, query, orderBy, limit, startAfter, where, onSnapshot, doc, setDoc, deleteDoc, getDoc, getDocs, getCountFromServer, getStorage, ref, uploadBytes, getDownloadURL, updateDoc } from "./firebase.js";
 import { extractMentions } from './mention.js';
 import { handleTags } from './tags.js';
 
@@ -171,32 +171,39 @@ document.getElementById("postBtn").addEventListener("click", async () => {
 
     if (!text && !base64Media) return;
 
+    const permission = document.getElementById("replyPermission").value;
+    const tagMatches = text.match(/#(\w+)/g) || [];
+    const tags = [...new Set(tagMatches.map(tag => tag.slice(1).toLowerCase().slice(0, 30)))];
+
     const tweetRef = await addDoc(collection(db, "tweets"), {
       text,
       media: base64Media,
       mediaType,
       createdAt: new Date(),
-      uid: user.uid
+      uid: user.uid,
+      tags,
+      replyPermission: permission
     });
 
     const mentionsRaw = await extractMentions(text);
     const mentions = mentionsRaw.map(m => m.uid);
 
-    if (mentions.length > 0) {
-      try {
-        await updateDoc(tweetRef, {
+    try {
+      await updateDoc(tweetRef, {
+        ...(mentions.length > 0 && {
           mentions
-        });
+        })
+      });
 
-        await Promise.all(
-          mentions.map(uid =>
-            setDoc(doc(db, "users", uid, "mentioned", tweetRef.id), {
-              mentionedAt: new Date()
-            }).catch(() => {})
-          )
-        );
-      } catch (e) {}
-    }
+      await Promise.all([
+        ...mentions.map(uid =>
+          setDoc(doc(db, "users", uid, "mentioned", tweetRef.id), {
+            mentionedAt: new Date()
+          }).catch(() => {})
+        )
+      ]);
+    } catch (e) {}
+
 
     await handleTags(text, tweetRef.id);
 
@@ -256,7 +263,10 @@ function applyReadMoreLogic(container) {
 }
 
 async function renderTweets(user) {
-  const q = query(collection(db, "tweets"), orderBy("createdAt", "desc"));
+  const q = query(
+    collection(db, "tweets"),
+    orderBy("likeCount", "desc")
+  );
 
   onSnapshot(q, async (snapshot) => {
     for (const change of snapshot.docChanges()) {
@@ -342,6 +352,10 @@ export async function renderTweet(t, tweetId, user, action = "prepend", containe
   const likeRef = doc(db, "tweets", tweetId, "likes", user.uid);
   const likedSnap = await getDoc(likeRef);
   const isLiked = likedSnap.exists();
+
+  const bookmarkRef = doc(db, "users", user.uid, "bookmarks", tweetId);
+  const bookmarkedSnap = await getDoc(bookmarkRef);
+  const isBookmarked = bookmarkedSnap.exists();
 
   const authorUID = t.uid;
   const userDoc = await getDoc(doc(db, "users", authorUID));
@@ -537,7 +551,10 @@ export async function renderTweet(t, tweetId, user, action = "prepend", containe
           <img src="image/rewint.svg"> ${retweetCount}
         </span>
         <div style="margin-left:auto;">
-          ${auth.currentUser.uid === t.uid ? `<span style="cursor:pointer" class="delete-btn" data-id="${tweetId}"><img src="image/trash.svg"></span>` : ""}
+        <span style="cursor:pointer;" class="bookmark-btn" id="bookmarkBtn-${tweetId}">
+        ${isBookmarked ? `<img src="image/bookmark-filled.svg">` : `<img src="image/bookmark.svg">`}
+        </span>
+          ${auth.currentUser.uid === t.uid ? `<span style="cursor:pointer;margin-left:5px" class="delete-btn" data-id="${tweetId}"><img src="image/trash.svg"></span>` : ""}
           <span style="margin-left:10px"><img src="image/chart.svg"> ${viewCount}</span>
         </div>
       </div>
@@ -603,24 +620,36 @@ document.body.addEventListener("click", async (e) => {
     const tweetId = deleteBtn.dataset.id;
     const userId = auth.currentUser.uid;
 
-    if (confirm("Are you sure you want to delete this tweet?")) {
+    if (confirm("Are you sure you want to delete this wint?")) {
       const tweetRef = doc(db, "tweets", tweetId);
       const tweetSnap = await getDoc(tweetRef);
-      if (tweetSnap.exists()) {
-        await Promise.all([
-          deleteSubcollectionDocs(tweetId, "comments"),
-          deleteSubcollectionDocs(tweetId, "likes"),
-          deleteSubcollectionDocs(tweetId, "views")
-        ]);
 
-        await deleteDoc(tweetRef);
-        await deleteDoc(doc(db, "users", userId, "posts", tweetId));
+      if (!tweetSnap.exists()) return;
+      const data = tweetSnap.data();
 
-        const el = document.getElementById("tweet-" + tweetId);
-        if (el) el.remove();
-      }
+      const tagDeletes = (data.tags || []).map(tag =>
+        deleteDoc(doc(db, "tags", tag, "tweets", tweetId))
+      );
+
+      const mentionDeletes = (data.mentions || []).map(uid =>
+        deleteDoc(doc(db, "users", uid, "mentioned", tweetId))
+      );
+
+      await Promise.all([
+        deleteSubcollectionDocs(tweetId, "comments"),
+        deleteSubcollectionDocs(tweetId, "likes"),
+        deleteSubcollectionDocs(tweetId, "views"),
+        deleteDoc(tweetRef),
+        deleteDoc(doc(db, "users", userId, "posts", tweetId)),
+        ...tagDeletes,
+        ...mentionDeletes,
+      ]);
+
+      const el = document.getElementById("tweet-" + tweetId);
+      if (el) el.remove();
     }
   }
+
 });
 
 const observer = new IntersectionObserver(async (entries, obs) => {
@@ -659,8 +688,8 @@ async function loadTweets(initial = false) {
   if (initial && loadingScreen) {
     loadingScreen.style.display = "flex";
     loadingScreen.style.opacity = "1";
-    document.body.classList.add('no-scroll');
-    if (logEl) logEl.textContent = "rendering wints (0)";
+    document.body.classList.add("no-scroll");
+    if (logEl) logEl.textContent = "rendering wints...";
   }
 
   let qiqi = query(
@@ -690,23 +719,24 @@ async function loadTweets(initial = false) {
 
   let renderedCount = 0;
 
-  for (const docSnap of snap.docs) {
+  for (let i = 0; i < snap.docs.length; i++) {
+    const docSnap = snap.docs[i];
     const t = docSnap.data();
     const tweetId = docSnap.id;
+
     await renderTweet(t, tweetId, auth.currentUser);
     renderedCount++;
-    if (initial && logEl) logEl.textContent = `rendering wints (${renderedCount})`;
+
+    if (initial && renderedCount === 3 && loadingScreen) {
+      loadingScreen.style.opacity = "0";
+      document.body.classList.remove("no-scroll");
+      setTimeout(() => {
+        loadingScreen.style.display = "none";
+      }, 300);
+    }
   }
 
   loadingMore = false;
-
-  if (initial && loadingScreen) {
-    loadingScreen.style.opacity = "0";
-    document.body.classList.remove('no-scroll');
-    setTimeout(() => {
-      loadingScreen.style.display = "none";
-    }, 300);
-  }
 }
 
 document.body.addEventListener("click", async (e) => {
@@ -714,23 +744,56 @@ document.body.addEventListener("click", async (e) => {
   if (commentBtn) {
     const tweetId = commentBtn.dataset.id;
     document.getElementById("commentOverlay").classList.remove("hidden");
-    document.getElementById('flex').classList.add('yes');
+
     const tweetEl = document.querySelector(`#tweet-${tweetId}`);
     const tweetText = tweetEl.querySelector("p")?.textContent || "";
-    const tweetMedia = tweetEl.querySelector(".attachment")?.innerHTML || "";
+    const tweetMediaEl = tweetEl.querySelector(".attachment")?.querySelector("img, video");
+    const mediaSrc = tweetMediaEl?.getAttribute("src") || "";
+    const isVideo = tweetMediaEl?.tagName === "VIDEO";
+    const containsSpoiler = /\|\|.+?\|\|/.test(tweetText);
 
     const uid = auth.currentUser.uid;
     const userDoc = await getDoc(doc(db, "users", uid));
     const profile = userDoc.exists() ? userDoc.data() : {};
 
+    let mediaHTML = "";
+    if (mediaSrc) {
+      if (isVideo) {
+        mediaHTML = containsSpoiler ?
+          `
+        <div class="attachment spoiler-media" onclick="this.classList.add('revealed')">
+          <div class="spoiler-overlay"><div class="spoilertxt">spoiler</div></div>
+          <video style="max-width: 100%; max-height: 300px;" muted controls>
+            <source src="${mediaSrc}" type="video/mp4" />
+          </video>
+        </div>` :
+          `
+        <div class="attachment">
+          <video controls style="max-width: 100%; max-height: 300px;">
+            <source src="${mediaSrc}" type="video/mp4" />
+          </video>
+        </div>`;
+      } else {
+        mediaHTML = containsSpoiler ?
+          `
+        <div class="attachment spoiler-media" onclick="this.classList.add('revealed')">
+          <div class="spoiler-overlay"><div class="spoilertxt">spoiler</div></div>
+          <img src="${mediaSrc}" style="max-width: 100%; max-height: 300px; border-radius: 15px;" alt="image" />
+        </div>` :
+          `
+        <div class="attachment">
+          <img src="${mediaSrc}" style="max-width: 100%; max-height: 300px; border-radius: 15px;" alt="image" />
+        </div>`;
+      }
+    }
+
     document.getElementById("commentTweet").innerHTML = `
-  <p>${linkify(tweetText)}</p>
-  <div class="attachment">
-  ${tweetMedia}
-  </div>
-`;
+    <p>${linkify(tweetText)}</p>
+    ${mediaHTML}
+  `;
 
     applyReadMoreLogic(commentTweet);
+
 
     document.getElementById("sendComment").onclick = async () => {
       const commentText = document.getElementById("commentInput").value.trim();
@@ -763,13 +826,33 @@ document.body.addEventListener("click", async (e) => {
       }
     };
     loadComments(tweetId);
+    document.body.classList.add('no-scroll');
   }
+
+  const bookmarkBtn = e.target.closest(".bookmark-btn");
+  if (bookmarkBtn) {
+    const btn = bookmarkBtn;
+    const tweetId = btn.id.replace("bookmarkBtn-", "");
+    const bookmarkRef = doc(db, "users", auth.currentUser.uid, "bookmarks", tweetId);
+
+    const snap = await getDoc(bookmarkRef);
+
+    if (snap.exists()) {
+      await deleteDoc(bookmarkRef);
+      btn.innerHTML = `<img src="image/bookmark.svg">`;
+    } else {
+      await setDoc(bookmarkRef, {
+        bookmarkedAt: new Date()
+      });
+      btn.innerHTML = `<img src="image/bookmark-filled.svg">`;
+    }
+  }
+
 });
 
 document.getElementById("closeComment").onclick = () => {
   document.getElementById("commentOverlay").classList.add("hidden");
-  document.getElementById('flex').classList.remove('yes');
-  document.getElementById('flex-grow').classList.remove('yes');
+  document.body.classList.remove('no-scroll');
 };
 
 let activeReplyCommentId = null;
@@ -785,14 +868,62 @@ document.body.addEventListener("click", async (e) => {
 
 async function loadComments(tweetId) {
   const q = query(collection(db, "tweets", tweetId, "comments"), orderBy("createdAt"));
+
   const snap = await getDocs(q);
   const list = document.getElementById("commentList");
   list.innerHTML = `<div class="comment-scrollbox" id="commentWrapper"></div>`;
   const wrapper = document.getElementById("commentWrapper");
 
-  snap.forEach(async (docSnap) => {
-    const d = docSnap.data();
+  const tweetDoc = await getDoc(doc(db, "tweets", tweetId));
+  if (!tweetDoc.exists()) return;
+
+  const tweetData = tweetDoc.data();
+  const pinnedCommentId = tweetData.pinnedCommentId || null;
+  const tweetOwnerId = tweetData.uid;
+  const isOwner = auth.currentUser.uid === tweetOwnerId;
+
+  const inputBox = document.querySelector("#commentInput");
+  if (inputBox) inputBox.style.display = "block";
+  const skibidi = document.querySelector('#skibidi');
+  if (skibidi) skibidi.style.display = "flex";
+
+  let pinnedCommentHTML = null;
+
+  const permission = tweetData.replyPermission || "everyone";
+  let canComment = true;
+
+  if (permission === "following") {
+    const followingDoc = await getDoc(
+      doc(db, "users", tweetOwnerId, "following", auth.currentUser.uid)
+    );
+    canComment = followingDoc.exists();
+  } else if (permission === "mentioned") {
+    const userDoc = await getDoc(doc(db, "users", auth.currentUser.uid));
+    const displayName = userDoc.exists() ? userDoc.data().displayName : null;
+
+    if (displayName) {
+      const mentions = tweetData.text.match(/@(\w+)/g) || [];
+      canComment = mentions.some(m => m.slice(1) === displayName);
+    } else {
+      canComment = false;
+    }
+  }
+
+  const commentStatus = document.getElementById("comment-status");
+  if (commentStatus) {
+    if (permission === "everyone") {
+      commentStatus.innerHTML = "";
+    } else if (permission === "following") {
+      commentStatus.innerHTML = `<img src="image/exclamation.svg"> the creator has chosen only people they follow can comment`;
+    } else if (permission === "mentioned") {
+      commentStatus.innerHTML = `<img src="image/exclamation.svg"> the creator has chosen only people they mention can comment`;
+    }
+  }
+
+  for (const docSnap of snap.docs) {
     const commentId = docSnap.id;
+    const isPinned = commentId === pinnedCommentId;
+    const d = docSnap.data();
 
     const replyCountSnap = await getCountFromServer(
       collection(db, "tweets", tweetId, "comments", commentId, "replies")
@@ -800,7 +931,7 @@ async function loadComments(tweetId) {
     const replyCount = replyCountSnap.data().count;
 
     let displayName = d.name;
-    let avatar = d.photoUR;
+    let avatar = d.photoURL;
 
     try {
       const userDoc = await getDoc(doc(db, "users", d.uid));
@@ -814,12 +945,13 @@ async function loadComments(tweetId) {
     }
 
     const replyButtonHTML = `
-  <button class="toggle-replies-btn link" data-id="${commentId}" data-tweet="${tweetId}" data-open="false">
-    ${replyCount > 0 ? `View replies (${replyCount})` : "Reply"}
-  </button>`;
+      <button class="toggle-replies-btn link" data-id="${commentId}" data-tweet="${tweetId}" data-open="false">
+        ${replyCount > 0 ? `View replies (${replyCount})` : "Reply"}
+      </button>`;
 
     const commentHTML = document.createElement("div");
     commentHTML.className = "comment-item";
+
     const commentLikeRef = doc(db, "tweets", tweetId, "comments", commentId, "likes", auth.currentUser.uid);
     const commentLikeSnap = await getDoc(commentLikeRef);
     const isCommentLiked = commentLikeSnap.exists();
@@ -828,42 +960,96 @@ async function loadComments(tweetId) {
       collection(db, "tweets", tweetId, "comments", commentId, "likes")
     );
     const commentLikeCount = commentLikeCountSnap.data().count;
+
     commentHTML.innerHTML = `
+      <div class="flex" id="pinned" style="gap:3px;display:none;">
+      <img src="image/pin.svg" style="width:22px;height:22px;">
+      <p style="color:grey;margin:0;font-size:13px;">pinned by the creator</p>
+      </div>
       <div class="flex comment-header" style="gap:10px">
         <img src="${escapeHTML(avatar)}" onerror="this.src='image/default-avatar.jpg'" class="avatar comment-avatar">
         <strong class="user-link" data-uid="${d.uid}" style="cursor:pointer">${escapeHTML(displayName)}</strong>
-      <span class="comment-date">${formatDate(d.createdAt)}</span>
+        <span class="comment-date">${formatDate(d.createdAt)}</span>
       </div>
       <div class="comment-body">
         <p class="no-margin">${linkify(d.text)}</p>
-${d.media && d.mediaType === "image" ? `<img src="${d.media}" class="attachment1" style="max-width:100%;max-height:200px;margin-bottom:5px;border-radius:8px">` : ""}
-      <div class="flex">
-      <span class="comment-like-btn" data-id="${commentId}" data-tweet="${tweetId}" style="cursor:pointer">
-  ${isCommentLiked ? `<img src="image/filled-heart.svg">` : `<img src="image/heart.svg">`}
-<span id="comment-like-count-${commentId}">${commentLikeCount}</span></span>
-
-${auth.currentUser.uid === d.uid ? `
-  <span class="comment-delete-btn" data-id="${commentId}" data-tweet="${tweetId}" style="cursor:pointer;margin-left:auto;"><img src="image/trash.svg"></span>
-` : ""}</div>
-        <div class="reply-actions">
-  ${replyButtonHTML}
+        ${d.media && d.mediaType === "image" ? `<img src="${d.media}" class="attachment1" style="max-width:100%;max-height:200px;margin-bottom:5px;border-radius:8px">` : ""}
+        <div class="flex">
+          <span class="comment-like-btn" data-id="${commentId}" data-tweet="${tweetId}" style="cursor:pointer">
+            ${isCommentLiked ? `<img src="image/filled-heart.svg">` : `<img src="image/heart.svg">`}
+            <span id="comment-like-count-${commentId}">${commentLikeCount}</span>
+          </span>
+          ${auth.currentUser.uid === d.uid ? `
+            <span class="comment-delete-btn" data-id="${commentId}" data-tweet="${tweetId}" style="cursor:pointer;margin-left:auto;"><img src="image/trash.svg"></span>` : ""}
+        </div>
+        <div class="reply-actions">${replyButtonHTML}</div>
+        <div class="flex pin-comment-btn" style="display:none; width: 100%;">
+  <button style="margin-left:auto; cursor:pointer; background:none; border:none; color:gray; font-size:13px;">
+    pin comment
+  </button>
 </div>
         <div class="reply-box hidden" id="reply-box-${commentId}">
           <textarea class="reply-text" placeholder="thoughts...?"></textarea>
-<div class="attachment" id="replyPreview-${commentId}"></div>
-<div class="flex">
-          <button class="send-reply-btn" data-id="${commentId}">Post</button>
-<input type="file" id="replyMedia-${commentId}" class="comment-media-input hidden-input" accept="image/*" />
-<label class="custom-file-btn" for="replyMedia-${commentId}"><img src="image/upload.svg"></label>
-          <button style="margin-left:auto" class="cancel-reply-btn no-bg">Cancel</button>
-</div>
+          <div class="attachment" id="replyPreview-${commentId}"></div>
+          <div class="flex">
+            <button class="send-reply-btn" data-id="${commentId}">Post</button>
+            <input type="file" id="replyMedia-${commentId}" class="comment-media-input hidden-input" accept="image/*" />
+            <label class="custom-file-btn" for="replyMedia-${commentId}"><img src="image/upload.svg"></label>
+            <button style="margin-left:auto" class="cancel-reply-btn no-bg">Cancel</button>
+          </div>
           <div class="reply-list" id="replies-${commentId}"></div>
         </div>
       </div>
     `;
 
-    wrapper.appendChild(commentHTML);
-    applyReadMoreLogic(commentHTML);
+    if (!canComment && !isOwner) {
+      const inputBox = document.querySelector("#commentInput");
+      if (inputBox) inputBox.style.display = 'none';
+      const skibidi = document.querySelector('#skibidi');
+      if (skibidi) skibidi.style.display = "none";
+
+      const replyBoxEl = commentHTML.querySelector(`#reply-box-${commentId}`);
+      if (replyBoxEl) {
+        const textArea = replyBoxEl.querySelector(".reply-text");
+        const sendBtn = replyBoxEl.querySelector(".send-reply-btn");
+        const fileInput = replyBoxEl.querySelector(".comment-media-input");
+        const label = replyBoxEl.querySelector(".custom-file-btn");
+        const cancelBtn = replyBoxEl.querySelector(".cancel-reply-btn");
+        const attachmentBox = replyBoxEl.querySelector(".attachment");
+
+        if (textArea) textArea.remove();
+        if (sendBtn) sendBtn.remove();
+        if (fileInput) fileInput.remove();
+        if (label) label.remove();
+        if (cancelBtn) cancelBtn.remove();
+        if (attachmentBox) attachmentBox.remove();
+      }
+    }
+
+    if (isOwner) {
+      const pinBtnContainer = commentHTML.querySelector(".pin-comment-btn");
+      const pinBtn = pinBtnContainer.querySelector("button");
+
+      pinBtn.textContent = isPinned ? "unpin comment" : "pin comment";
+
+      pinBtn.onclick = async () => {
+        await updateDoc(doc(db, "tweets", tweetId), {
+          pinnedCommentId: isPinned ? null : commentId
+        });
+        await loadComments(tweetId);
+      };
+
+      if (isPinned) {
+        pinBtnContainer.style.display = "flex";
+      } else {
+        commentHTML.addEventListener("mouseenter", () => {
+          pinBtnContainer.style.display = "flex";
+        });
+        commentHTML.addEventListener("mouseleave", () => {
+          pinBtnContainer.style.display = "none";
+        });
+      }
+    }
 
     const repliesQ = query(collection(db, "tweets", tweetId, "comments", commentId, "replies"), orderBy("createdAt"));
     const repliesSnap = await getDocs(repliesQ);
@@ -873,14 +1059,30 @@ ${auth.currentUser.uid === d.uid ? `
       replyContainer.innerHTML += `
         <div>
           <div class="flex comment-header" style="gap:10px">
-            <img rc="${r.photoURL}" class="avatar comment-avatar">
+            <img src="${r.photoURL}" class="avatar comment-avatar">
             <strong>${r.name}</strong>
           </div>
           <p>${linkify(r.text)}</p>
         </div>
       `;
     });
-  });
+
+    applyReadMoreLogic(commentHTML);
+
+    const pinned = commentHTML.querySelector('#pinned');
+
+    if (isPinned) {
+      if (pinned) pinned.style.display = 'flex';
+      pinnedCommentHTML = commentHTML;
+    } else {
+      wrapper.appendChild(commentHTML);
+      if (pinned) pinned.style.display = 'none';
+    }
+  }
+
+  if (pinnedCommentHTML) {
+    wrapper.insertBefore(pinnedCommentHTML, wrapper.firstChild);
+  }
 }
 
 const REPLY_PAGE_SIZE = 10;
@@ -1009,53 +1211,6 @@ document.body.addEventListener("click", async (e) => {
     overlay.classList.add("hidden");
     overlayContent.innerHTML = "";
   }
-
-  const originalLink = e.target.closest(".original-tweet-link");
-  if (
-    originalLink &&
-    !e.target.closest("img") &&
-    !e.target.closest(".user-link")
-  ) {
-
-    if (originalLink) {
-      const originalId = originalLink.dataset.id;
-      const originalEl = document.getElementById(`tweet-${originalId}`);
-
-      document.getElementById("retweetOverlay").classList.add("hidden");
-      document.getElementById('flex').classList.remove('yes');
-
-      if (originalEl) {
-
-        originalEl.scrollIntoView({
-          behavior: "smooth",
-          block: "center"
-        });
-        originalEl.classList.add("highlight");
-        setTimeout(() => originalEl.classList.remove("highlight"), 1500);
-      } else {
-
-        const docSnap = await getDoc(doc(db, "tweets", originalId));
-        if (docSnap.exists()) {
-          const t = docSnap.data();
-          await renderTweet(t, originalId, auth.currentUser, "prepend");
-
-          setTimeout(() => {
-            const el = document.getElementById(`tweet-${originalId}`);
-            if (el) {
-              el.scrollIntoView({
-                behavior: "smooth",
-                block: "center"
-              });
-              el.classList.add("highlight");
-              setTimeout(() => el.classList.remove("highlight"), 1500);
-            }
-          }, 100);
-        } else {
-          alert("Original tweet was deleted.");
-        }
-      }
-    }
-  }
 });
 
 async function loadReplies(tweetId, commentId) {
@@ -1160,6 +1315,7 @@ document.body.addEventListener("click", async (e) => {
       await deleteDoc(ref);
       if (icon) icon.src = "image/heart.svg";
       if (countSpan) countSpan.textContent = `${parseInt(countSpan.textContent || 1) - 1}`;
+
     } else {
       await setDoc(ref, {
         likedAt: new Date()
@@ -1198,25 +1354,27 @@ document.body.addEventListener("click", async (e) => {
     const countSpan = document.getElementById(`likeCount-${tweetId}`);
 
     const tweetLikeRef = doc(db, "tweets", tweetId, "likes", auth.currentUser.uid);
-    const userLikeRef = doc(db, "likes", auth.currentUser.uid, "tweets", tweetId);
     const snap = await getDoc(tweetLikeRef);
 
     if (snap.exists()) {
-
       await deleteDoc(tweetLikeRef);
-      await deleteDoc(userLikeRef);
 
       btn.innerHTML = `<img src="image/heart.svg"><span id="likeCount-${tweetId}">${(parseInt(countSpan.textContent) || 1) - 1}</span>`;
-    } else {
+      await updateDoc(doc(db, "tweets", tweetId), {
+        likeCount: increment(-1)
+      });
 
+    } else {
       const likeData = {
         likedAt: new Date()
       };
-
       await setDoc(tweetLikeRef, likeData);
-      await setDoc(userLikeRef, likeData);
 
       btn.innerHTML = `<img src="image/filled-heart.svg"><span id="likeCount-${tweetId}">${(parseInt(countSpan.textContent) || 0) + 1}</span>`;
+      await updateDoc(doc(db, "tweets", tweetId), {
+        likeCount: increment(1)
+      });
+
     }
   }
 
@@ -1246,9 +1404,32 @@ document.body.addEventListener("click", async (e) => {
 
 let selectedRetweet = null;
 
+const bookmark = document.getElementById('bookmarkOverlay');
+const profile = document.getElementById('profileOverlay');
+const profilesub = document.getElementById('profileSubOverlay');
+const user = document.getElementById('userOverlay');
+const usersub = document.getElementById('userSubOverlay');
+const tag = document.getElementById('tagSubOverlay');
+const follow = document.getElementById('followOverlay');
+const viewer = document.getElementById('tweetViewer');
+
+const bookmarksvg = document.querySelector('.smallbar img[src="image/bookmark.svg"]');
+const homesvg = document.querySelector('.smallbar img[src="image/home.svg"]');
+const usersvg = document.querySelector('.smallbar img[src="image/user.svg"]')
+const searchsvg = document.querySelector('.smallbar img[src="image/search.svg"]')
+const settingssvg = document.querySelector('.smallbar img[src="image/settings.svg"]')
+
+const bookmarkfilled = document.querySelector('.smallbar img[src="image/bookmark-filled.svg"]');
+const homefilled = document.querySelector('.smallbar img[src="image/home-filled.svg"]');
+const userfilled = document.querySelector('.smallbar img[src="image/user-filled.svg"]')
+const searchfilled = document.querySelector('.smallbar img[src="image/search-filled.svg"]')
+const settingsfilled = document.querySelector('.smallbar img[src="image/settings-filled.svg"]')
+
 document.body.addEventListener("click", async (e) => {
   const retweetBtn = e.target.closest(".retweet-btn");
   if (!retweetBtn) return;
+
+  document.body.classList.remove("no-scroll");
 
   const tweetId = retweetBtn.dataset.id;
   selectedRetweet = tweetId;
@@ -1304,8 +1485,30 @@ document.body.addEventListener("click", async (e) => {
   `;
 
   document.getElementById("retweetOverlay").classList.remove("hidden");
-  document.getElementById('flex').classList.add('yes');
   applyReadMoreLogic(document.getElementById("retweetOriginal"));
+
+  follow?.classList.add('hidden');
+  profile?.classList.add('hidden');
+  profilesub?.classList.add('hidden');
+  user?.classList.add('hidden');
+  usersub?.classList.add('hidden');
+  bookmark?.classList.add('hidden');
+  tag?.classList.add('hidden');
+  viewer?.classList.add('hidden');
+
+  settingsfilled?.classList.add('hidden');
+  homesvg?.classList.add('hidden');
+  bookmarkfilled?.classList.add('hidden');
+  userfilled?.classList.add('hidden');
+  searchfilled?.classList.add('hidden');
+
+  settingssvg?.classList.remove('hidden');
+  usersvg?.classList.remove('hidden');
+  searchsvg?.classList.remove('hidden');
+  bookmarksvg?.classList.remove('hidden');
+  homefilled?.classList.remove('hidden');
+
+  document.body.classList.add('no-scroll');
 });
 
 document.getElementById("sendRetweet").onclick = async () => {
@@ -1338,6 +1541,7 @@ document.getElementById("sendRetweet").onclick = async () => {
       retweetOf: originalId,
       media,
       mediaType,
+      likeCount: 0,
       createdAt: new Date(),
       uid
     });
@@ -1369,8 +1573,7 @@ document.getElementById("sendRetweet").onclick = async () => {
     document.getElementById("retweetMediaInput").value = "";
     document.getElementById("retweetPreview").innerHTML = "";
     document.getElementById("retweetOverlay").classList.add("hidden");
-    document.getElementById('flex').classList.remove('yes');
-    document.getElementById('flex-grow').classList.remove('yes');
+    document.body.classList.remove('no-scroll');
 
   } catch (error) {
     if (error.message.includes("The value of property \"media\" is longer than")) {
@@ -1432,8 +1635,6 @@ document.body.addEventListener("click", async (e) => {
       document.querySelector('.smallbar img[src="image/search.svg"]').classList.add('hidden');
       document.querySelector('.smallbar img[src="image/search-filled.svg"]').classList.remove('hidden');
       document.getElementById('followOverlay').classList.add('hidden');
-      document.getElementById('flex').classList.remove('yes');
-      document.getElementById('flex-grow').classList.remove('yes');
     }
   }
 });
