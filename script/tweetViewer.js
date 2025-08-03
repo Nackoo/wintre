@@ -1,20 +1,5 @@
-import {
-  auth,
-  db,
-  doc,
-  getDoc,
-  getDocs,
-  collection,
-  query,
-  orderBy,
-  getCountFromServer,
-  increment,
-  updateDoc
-} from "./firebase.js";
-
-import {
-  renderTweet
-} from "./index.js";
+import { auth, db, doc, getDoc, getDocs, collection, query, orderBy, getCountFromServer, increment, updateDoc } from "./firebase.js";
+import { renderTweet } from "./index.js";
 
 export async function viewTweet(tweetId) {
   const overlay = document.getElementById("tweetViewer");
@@ -51,6 +36,14 @@ async function loadTweetRecursive(tweetId, container) {
 }
 
 document.body.addEventListener("click", async (e) => {
+
+  if (
+    e.target.closest(".attachment2") ||
+    e.target.closest(".rt-attachment")
+  ) {
+    return;
+  }
+
   const link = e.target.closest(".original-tweet-link");
   if (!link) return;
 
