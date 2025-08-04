@@ -37,21 +37,22 @@ async function loadTweetRecursive(tweetId, container) {
 
 document.body.addEventListener("click", async (e) => {
 
-  if (
-    e.target.closest(".attachment2") ||
-    e.target.closest(".rt-attachment")
-  ) {
-    return;
-  }
-
   const link = e.target.closest(".original-tweet-link");
   if (!link) return;
-
-  e.preventDefault();
 
   const tweetId = link.dataset.id;
   const tweetViewer = document.getElementById("tweetViewer");
   const box = tweetViewer.querySelector("#appendTweet");
+  
+  if (
+    e.target.closest(".attachment2") ||
+    e.target.closest(".rt-attachment") ||
+    e.target.closest('.tag-link')
+  ) {
+    return;
+  } 
+
+  e.preventDefault();
 
   box.innerHTML = "";
   tweetViewer.classList.remove("hidden");
