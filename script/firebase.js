@@ -4,13 +4,13 @@ import { getFirestore, collection, addDoc, query, orderBy, limit, startAfter, wh
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyA9aK-CsTxEuchCnG1EdK7up6euuywlfDE",
-  authDomain: "wintre-f5b48.firebaseapp.com",
-  projectId: "wintre-f5b48",
-  storageBucket: "wintre-f5b48.appspot.com",
-  messagingSenderId: "1065805239288",
-  appId: "1:1065805239288:web:16ab89d1074ba2b57dfc0d",
-  measurementId: "G-5PN0K7V2CP"
+  apiKey: "API_KEY",
+  authDomain: "AUTH_DOMAIN",
+  projectId: "PROJECT_ID",
+  storageBucket: "STORAGE_BUCKET",
+  messagingSenderId: "MESSAGING_SENDER_ID",
+  appId: "APP_ID",
+  measurementId: "MEASUREMENT_ID"
 };
 
 const app = initializeApp(firebaseConfig);
