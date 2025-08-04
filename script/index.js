@@ -1644,15 +1644,21 @@ document.body.addEventListener("click", async (e) => {
   if (tagLink && tagLink.dataset.tag) {
     const tag = tagLink.dataset.tag;
     if (tag) {
-      await window.openTag(tag);
+      document.getElementById('tweetViewer')?.classList.add('hidden');
+      document.getElementById('profileOverlay')?.classList.add('hidden');
       document.getElementById('commentOverlay')?.classList.add('hidden');
       document.body.classList.add("no-scroll");
-      document.getElementById('userOverlay').classList.remove('hidden');
-      document.querySelector('.smallbar img[src="image/home-filled.svg"]').classList.add('hidden');
-      document.querySelector('.smallbar img[src="image/home.svg"]').classList.remove('hidden');
+      document.getElementById('userOverlay')?.classList.remove('hidden');
+      document.querySelector('.smallbar img[src="image/home-filled.svg"]')?.classList.add('hidden');
+      document.querySelector('.smallbar img[src="image/home.svg"]')?.classList.remove('hidden');
+      document.querySelector('.smallbar img[src="image/user-filled.svg"]')?.classList.add('hidden');
+      document.querySelector('.smallbar img[src="image/user.svg"]')?.classList.remove('hidden');
+      document.querySelector('.smallbar img[src="image/bookmark-filled.svg"]')?.classList.add('hidden');
+      document.querySelector('.smallbar img[src="image/bookmark.svg"]')?.classList.remove('hidden');
       document.querySelector('.smallbar img[src="image/search.svg"]').classList.add('hidden');
       document.querySelector('.smallbar img[src="image/search-filled.svg"]').classList.remove('hidden');
       document.getElementById('followOverlay')?.classList.add('hidden');
+      window.openTag(tag);
     }
   }
 });
