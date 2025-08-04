@@ -21,24 +21,22 @@ async function loadBookmarks(initial = false) {
 
   loading = true;
   const uid = auth.currentUser.uid;
-  const likesRef = collection(db, 'likes', uid, 'tweets');
+  const likesRef = collection(db, 'users', uid, 'bookmarks');
 
-  console.log("Fetching liked tweets for user:", uid);
-
-  let q = query(likesRef, orderBy('likedAt', 'desc'), limit(30));
+  let q = query(likesRef, orderBy('bookmarkedAt', 'desc'), limit(30));
   if (lastDoc && !initial) {
-    q = query(likesRef, orderBy('likedAt', 'desc'), startAfter(lastDoc), limit(30));
+    q = query(likesRef, orderBy('bookmarkedAt', 'desc'), startAfter(lastDoc), limit(30));
   }
 
   const snap = await getDocs(q);
   if (snap.empty && initial) {
-    bookmarkList.innerHTML = `<p style="color:gray;">Like a tweet to get started</p>`;
+    bookmarkList.innerHTML = `<p style="color:gray;">bookmark a tweet to get started</p>`;
     loadMoreBtn.style.display = "none";
     loading = false;
     return;
   }
 
-  console.log("Fetched liked tweet docs:", snap.docs.map(d => d.id));
+  console.log("Fetched bookmarked wint docs:", snap.docs.map(d => d.id));
 
   if (initial && snap.docs.length < 30) {
     loadMoreBtn.style.display = "none";
@@ -83,11 +81,11 @@ async function loadBookmarks(initial = false) {
       trashIcon.addEventListener('click', async () => {
         try {
           const uid = auth.currentUser.uid;
-          await deleteDoc(doc(db, 'likes', uid, 'tweets', tweetId));
+          await deleteDoc(doc(db, "users", auth.currentUser.uid, "bookmarks", tweetId));
           deletedBox.remove();
-          console.log(`Deleted tweet ${tweetId} from likes.`);
+          console.log(`Deleted tweet ${tweetId} from bookmark.`);
         } catch (e) {
-          console.error("Error removing tweet from likes:", e);
+          console.error("Error removing tweet from bookmark:", e);
         }
       });
 
