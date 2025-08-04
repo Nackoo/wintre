@@ -151,6 +151,7 @@
     <div class="container">
       <button onclick="
       document.getElementById('tweetOverlay').classList.remove('hidden');
+      document.body.classList.add('no-scroll');
     " id="post"><img src="image/write.svg"></button>
       <header style="z-index: 2; position: fixed; transition: top 0.4s ease;" id="timeline-header">
         <div class="tab-container" id="tab-container-header">
@@ -240,12 +241,14 @@
           <div class="flex">
             <button id="postBtn" style="padding:7px 15px" onclick="
         document.getElementById('tweetOverlay').classList.add('hidden');
+        document.body.classList.remove('no-scroll');
       ">Wint</button>
             <label class="custom-file-btn" for="mediaInput"><img src="image/upload.svg"></label>
             <input type="file" id="mediaInput" class="hidden-input" accept="image/*,video/*" />
             <button class="no-bg" style="margin-left: auto;" onclick="
   document.getElementById('tweetInput').value = ''; 
   document.getElementById('tweetOverlay').classList.add('hidden');
+  document.body.classList.remove('no-scroll');
        ">cancel</button>
           </div>
         </div>
