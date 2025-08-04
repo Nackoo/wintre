@@ -9,15 +9,15 @@ const viewer = document.getElementById('tweetViewer');
 
 const bookmarksvg = document.querySelector('.smallbar img[src="image/bookmark.svg"]');
 const homesvg = document.querySelector('.smallbar img[src="image/home.svg"]');
-const usersvg = document.querySelector('.smallbar img[src="image/user.svg"]')
-const searchsvg = document.querySelector('.smallbar img[src="image/search.svg"]')
-const settingssvg = document.querySelector('.smallbar img[src="image/settings.svg"]')
+const usersvg = document.querySelector('.smallbar img[src="image/user.svg"]');
+const searchsvg = document.querySelector('.smallbar img[src="image/search.svg"]');
+const settingssvg = document.querySelector('.smallbar img[src="image/settings.svg"]');
 
 const bookmarkfilled = document.querySelector('.smallbar img[src="image/bookmark-filled.svg"]');
 const homefilled = document.querySelector('.smallbar img[src="image/home-filled.svg"]');
-const userfilled = document.querySelector('.smallbar img[src="image/user-filled.svg"]')
-const searchfilled = document.querySelector('.smallbar img[src="image/search-filled.svg"]')
-const settingsfilled = document.querySelector('.smallbar img[src="image/settings-filled.svg"]')
+const userfilled = document.querySelector('.smallbar img[src="image/user-filled.svg"]');
+const searchfilled = document.querySelector('.smallbar img[src="image/search-filled.svg"]');
+const settingsfilled = document.querySelector('.smallbar img[src="image/settings-filled.svg"]');
 
 if (bookmarksvg) {
   bookmarksvg.addEventListener("click", async () => {
