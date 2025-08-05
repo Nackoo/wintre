@@ -131,3 +131,4 @@ service cloud.firestore {
 | comments      | `likeCount ↑`, `createdAt ↓`, `__name__ ↓`           | Collection   |
 | tweets        | `uid ↑`, `createdAt ↓`, `__name__ ↓`                 | Collection   |
 | tweets        | `likeCount ↓`, `createdAt ↑`, `__name__ ↑`           | Collection   |
+| tweets        | `likeCount ↓`, `createdAt ↓`, `__name__ ↓`           | Collection   |
