@@ -126,8 +126,8 @@ service cloud.firestore {
 
 ## indexes
 
-| Collection ID | Fields indexed                   | Query scope  |
-|---------------|----------------------------------|--------------|
-| comments      | V likeCount, V createdAt, V `__name__`   | Collection   |
-| tweets        | ^ uid, V createdAt, V `__name__`         | Collection   |
-| tweets        | V uid, ^ createdAt, ^ `__name__`         | Collection   |
+| Collection ID | Fields indexed                                       | Query scope  |
+|---------------|------------------------------------------------------|--------------|
+| comments      | `likeCount ↑`, `createdAt ↓`, `__name__ ↓`           | Collection   |
+| tweets        | `uid ↑`, `createdAt ↓`, `__name__ ↓`                 | Collection   |
+| tweets        | `likeCount ↓`, `createdAt ↑`, `__name__ ↑`           | Collection   |
