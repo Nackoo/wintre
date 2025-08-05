@@ -27,6 +27,9 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if true;
+      allow update: if request.auth != null && request.auth.uid == userId &&
+    request.writeFields.size() == 1 &&
+    request.writeFields.hasOnly(["posts"]);
       allow write: if request.auth != null && request.auth.uid == userId;
 
       match /mentioned/{tweetId} {
