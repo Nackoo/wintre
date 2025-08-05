@@ -1,8 +1,8 @@
 # wintre
 
 ## firestore rule
-
-`rules_version = '2';
+```
+rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -121,11 +121,13 @@ service cloud.firestore {
       }
     }
   }
-}`
+}
+```
 
 ## indexes
-
+`
 Collection ID  Fields indexed                        Query scope
-comments	   likeCount    createdAt    __name__    Collection
+comments	     likeCount    createdAt    __name__    Collection
  tweets	          uid       createdAt    __name__    Collection
  tweets	          uid       createdAt    __name__    Collection
+`
