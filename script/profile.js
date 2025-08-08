@@ -253,7 +253,11 @@ document.querySelector('.smallbar img[src="image/user.svg"]').addEventListener("
 
   const myFollowersSnap = await getDocs(collection(db, "users", uid, "followers"));
   const myFollowingSnap = await getDocs(collection(db, "users", uid, "following"));
+  const userSnap = await getDoc(doc(db, "users", uid));
+  const userData = userSnap.data();
+  const postCount = userData?.posts || 0;
 
+  document.getElementById("my-posts").textContent = `${postCount}`;
   document.getElementById("my-followers").textContent = `${myFollowersSnap.size}`;
   document.getElementById("my-following").textContent = `${myFollowingSnap.size}`;
 
@@ -296,7 +300,6 @@ saveButton.addEventListener("click", async () => {
     return;
   }
 
-  document.body.classList.remove('no-scroll');
   document.querySelector('.smallbar img[src="image/settings-filled.svg"]').classList.add('hidden');
   document.querySelector('.smallbar img[src="image/settings.svg"]').classList.remove('hidden');
   document.querySelector('.smallbar img[src="image/home-filled.svg"]').classList.remove('hidden');
@@ -328,4 +331,60 @@ saveButton.addEventListener("click", async () => {
   }
 
   await applyProfileUpdatesToAll(uid, newName, newAvatar);
+});
+
+let searchTimeout;
+
+document.getElementById("profileInput").addEventListener("input", async () => {
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(async () => {
+    const keyword = document.getElementById("profileInput").value.trim().toLowerCase();
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const isYouTab = document.querySelector(".tab2.active").dataset.target === "youList";
+
+    const listContainer = document.getElementById(isYouTab ? "youList" : "mentionedList");
+    listContainer.innerHTML = `<div class="flex" style="justify-content:center;"><div class="loader"></div></div>`;
+
+    let tweetIds = [];
+
+    if (isYouTab) {
+      const postsSnap = await getDocs(collection(db, "users", user.uid, "posts"));
+      tweetIds = postsSnap.docs.map(doc => doc.id);
+    } else {
+      const mentionsSnap = await getDocs(collection(db, "users", user.uid, "mentioned"));
+      tweetIds = mentionsSnap.docs.map(doc => doc.id);
+    }
+
+    const matched = [];
+
+    for (const tweetId of tweetIds) {
+      const tweetDoc = await getDoc(doc(db, "tweets", tweetId));
+      if (!tweetDoc.exists()) continue;
+
+      const tweet = tweetDoc.data();
+      const combinedText = (tweet.text || "").toLowerCase();
+      if (combinedText.includes(keyword)) {
+        matched.push({
+          tweetId,
+          tweet
+        });
+      }
+    }
+
+    listContainer.innerHTML = "";
+
+    if (matched.length === 0) {
+      listContainer.innerHTML = `<p style='text-align:center;color:grey;'>No results found</p>`;
+    } else {
+      for (const {
+          tweetId,
+          tweet
+        }
+        of matched) {
+        await renderTweet(tweet, tweetId, user, "append", listContainer);
+      }
+    }
+  }, 1000);
 });
