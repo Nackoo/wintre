@@ -165,3 +165,10 @@ service cloud.firestore {
 | tweets        | `uid ↑`, `createdAt ↓`, `__name__ ↓`                 | Collection   |
 | tweets        | `likeCount ↓`, `createdAt ↑`, `__name__ ↑`           | Collection   |
 | tweets        | `likeCount ↓`, `createdAt ↓`, `__name__ ↓`           | Collection   |
+
+## supabase policies
+
+| Policy name         | target roles | expression                    |
+|---------------------|--------------|-------------------------------|
+| allow_public_read   | anon         | `(bucket_id = 'wints'::text)` |
+| allow_public_upload | anon         | `(bucket_id = 'wints'::text)` |
