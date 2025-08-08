@@ -171,8 +171,8 @@ async function loadTweets(targetUid = auth.currentUser.uid) {
   const tweetIds = allPosts.docs.map(doc => doc.id);
 
   if (tweetIds.length === 0) {
-    youList.innerHTML = `<p id="start1" style="color:grey;">post to get started</p>`;
-    youLoadMore.style.display = "none";
+    list.innerHTML = `<p id="start1" style="color:grey;text-align:center">this user has no wint</p>`;
+    loadMore.style.display = "none";
     return;
   } else {
     const startEl = document.getElementById('start1');
@@ -192,7 +192,11 @@ async function loadTweets(targetUid = auth.currentUser.uid) {
   loadMore.style.display = loadedCount >= tweetIds.length ? "none" : "block";
 }
 
-loadMore.addEventListener("click", () => loadTweets(uid));
+loadMore.addEventListener("click", () => {
+  const uid = document.getElementById("user-name").dataset.uid;
+  loadTweets(uid);
+});
+
 
 document.getElementById("youLoadMore").addEventListener("click", () => loadYourTweets(false));
 
@@ -225,7 +229,7 @@ async function fetchUsers(reset = false) {
     item.innerHTML = `
     <img src="${data.photoURL}" onerror="this.src='image/default-avatar.jpg'" style="width:40px;height:40px;border-radius:50%;object-fit:cover;align-self:flex-start;">
     <div style="flex:1">
-      <strong>${escapeHTML(data.displayName || "Unnamed")}</strong>
+      <strong style="cursor:pointer;">${escapeHTML(data.displayName || "Unnamed")}</strong>
       <p style="margin:5px 0;color:grey">${escapeHTML(data.description || "")}</p>
     </div>
     <button class="mini-follow-btn" style="padding:4px 10px;border-radius:50px;background:white;height:30px;cursor:pointer;border:1px solid var(--border);">...</button>
@@ -369,7 +373,7 @@ async function openUserSubProfile(uid) {
   const docSnap = await getDoc(doc(db, "users", uid));
   if (!docSnap.exists()) return;
 
-  document.getElementById("user-name").dataset.uid = uid;
+  document.getElementById("user-name").dataset.uid
 
   const d = docSnap.data();
   document.getElementById("who").textContent = d.displayName || "Unnamed";
@@ -430,7 +434,11 @@ async function openUserSubProfile(uid) {
 
   const followersSnap = await getDocs(collection(db, "users", uid, "followers"));
   const followingSnap = await getDocs(collection(db, "users", uid, "following"));
+  const userSnap = await getDoc(doc(db, "users", uid));
+  const userData = userSnap.data();
+  const postCount = userData?.posts || 0;
 
+  document.getElementById("posts").textContent = `${postCount}`;
   document.getElementById("followers").textContent = `${followersSnap.size}`;
   document.getElementById("following").textContent = `${followingSnap.size}`;
 }
@@ -582,3 +590,57 @@ document.getElementById("ing").onclick = () => {
   window.lastViewedUserId = document.getElementById("user-name").dataset.uid;
   openFollowOverlay("following", window.lastViewedUserId, false);
 };
+
+let userSearchTimeout;
+
+document.getElementById("userInput").addEventListener("input", () => {
+  clearTimeout(userSearchTimeout);
+
+  userSearchTimeout = setTimeout(async () => {
+    const keyword = document.getElementById("userInput").value.trim().toLowerCase();
+    const targetUid = document.getElementById("user-name").dataset.uid;
+
+    const listContainer = document.getElementById("userList");
+    listContainer.innerHTML = `<div class="flex" style="justify-content:center;"><div class="loader"></div></div>`;
+
+    const postsSnap = await getDocs(collection(db, "users", targetUid, "posts"));
+    const tweetIds = postsSnap.docs.map(doc => doc.id);
+
+    const matched = [];
+
+    for (const tweetId of tweetIds) {
+      const tweetDoc = await getDoc(doc(db, "tweets", tweetId));
+      if (!tweetDoc.exists()) continue;
+
+      const tweet = tweetDoc.data();
+      const combinedText = (tweet.text || "").toLowerCase();
+      if (combinedText.includes(keyword)) {
+        matched.push({
+          tweetId,
+          tweet
+        });
+      }
+    }
+
+    listContainer.innerHTML = "";
+
+    if (matched.length === 0) {
+      listContainer.innerHTML = `<p style='text-align:center;color:grey;'>No results found</p>`;
+    } else {
+      const userDoc = await getDoc(doc(db, "users", targetUid));
+      const userData = userDoc.data();
+      const user = {
+        ...userData,
+        uid: targetUid
+      };
+
+      for (const {
+          tweetId,
+          tweet
+        }
+        of matched) {
+        await renderTweet(tweet, tweetId, user, "append", listContainer);
+      }
+    }
+  }, 1000);
+});
