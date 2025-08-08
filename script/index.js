@@ -2,12 +2,69 @@ import { app, auth, db, storage, initializeApp, getAuth, increment, onAuthStateC
 import { extractMentions } from './mention.js';
 import { handleTags } from './tags.js';
 import { sendCommentNotification, sendReplyNotification, listenForUnreadNotifications, loadNotifications, sendMentionNotification } from './notification.js';
+import { createClient, SUPABASE_URL, SUPABASE_ANON_KEY, MAX_FILE_BYTES, supabase } from "./firebase.js"
 
 let lastTweet = null;
 let loadingMore = false;
 let noMoreTweets = false;
 
 let isOnline = navigator.onLine;
+
+async function uploadToSupabase(file, uid) {
+  if (!file) return {
+    url: "",
+    type: ""
+  };
+
+  if (file.size > 20 * 1024 * 1024) {
+    throw new Error("File is too large (max 20MB).");
+  }
+
+  const type = file.type.startsWith("video/") ? "video" : "image";
+  const ext = file.name.split('.').pop();
+  const filePath = `wints/${uid}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+
+  const {
+    error
+  } = await supabase
+    .storage
+    .from("wints")
+    .upload(filePath, file, {
+      cacheControl: "3600",
+      upsert: false
+    });
+
+  if (error) throw error;
+
+  const url = `${SUPABASE_URL}/storage/v1/object/public/wints/${encodeURIComponent(filePath)}`;
+  return {
+    url,
+    type
+  };
+}
+
+function showImagePreview(input, previewElementId) {
+  const file = input.files[0];
+  const preview = document.getElementById(previewElementId);
+
+  preview.innerHTML = "";
+
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      if (file.type.startsWith("video/")) {
+        preview.innerHTML = `
+          <video controls class="attachment">
+            <source src="${e.target.result}">
+          </video>`;
+      } else {
+        preview.innerHTML = `
+          <img src="${e.target.result}" class="attachment">`;
+      }
+    };
+    reader.readAsDataURL(file);
+  }
+}
 
 window.addEventListener("offline", () => {
   isOnline = false;
@@ -218,18 +275,17 @@ document.getElementById("postBtn").addEventListener("click", async () => {
   const text = document.getElementById("tweetInput").value.trim();
   const file = document.getElementById("mediaInput").files[0];
 
-  let base64Media = "";
+  let mediaURL = "";
   let mediaType = "";
 
   try {
     if (file) {
-      mediaType = file.type.startsWith("video/") ? "video" : "image";
-      base64Media = mediaType === "image" ?
-        await resizeImage(file) :
-        await readFileAsBase64(file);
+      const upload = await uploadToSupabase(file, user.uid);
+      mediaURL = upload.url;
+      mediaType = upload.type;
     }
 
-    if (!text && !base64Media) return;
+    if (!text && !mediaURL) return;
 
     const permission = document.getElementById("replyPermission").value;
     const tagMatches = text.match(/#(\w+)/g) || [];
@@ -240,7 +296,7 @@ document.getElementById("postBtn").addEventListener("click", async () => {
 
     const tweetRef = await addDoc(collection(db, "tweets"), {
       text,
-      media: base64Media,
+      media: mediaURL,
       mediaType,
       createdAt: new Date(),
       uid: user.uid,
@@ -263,7 +319,6 @@ document.getElementById("postBtn").addEventListener("click", async () => {
     );
 
     await handleTags(text, tweetRef.id);
-
     await setDoc(doc(db, "users", user.uid, "posts", tweetRef.id), {
       exists: true
     });
@@ -276,11 +331,8 @@ document.getElementById("postBtn").addEventListener("click", async () => {
     document.getElementById("tweetPreview").innerHTML = "";
 
   } catch (error) {
-    if (error.message.includes("The value of property \"media\" is longer than")) {
-      alert("Media file is too large");
-    } else {
-      console.error("❌ Tweet failed:", error);
-    }
+    console.error("❌ Tweet failed:", error);
+    alert(error.message || "Upload failed");
   }
 });
 
@@ -410,6 +462,61 @@ function escapeHTML(str) {
   });
 }
 
+function setupSoundToggle(tweetElement) {
+  const btn = tweetElement.querySelector(".sound-toggle-btn");
+  if (!btn) return;
+
+  btn.addEventListener("click", () => {
+
+    const allVideos = document.querySelectorAll("video");
+
+    const anyMuted = Array.from(allVideos).some(v => v.muted);
+
+    allVideos.forEach(video => {
+      video.muted = !anyMuted;
+    });
+
+    const allBtns = document.querySelectorAll(".sound-toggle-btn");
+    allBtns.forEach(button => {
+      button.innerHTML = anyMuted ? "<img src='image/volume.svg'>" : "<img src='image/volume-muted.svg'>";
+    });
+  });
+}
+
+function setupVideoAutoplayOnVisibility(tweetElement) {
+  const videos = tweetElement.querySelectorAll("video");
+
+  const observer1 = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      const video = entry.target;
+
+      if (entry.isIntersecting) {
+        video.play().catch(() => {});
+      } else {
+        video.pause();
+      }
+
+      video._isVisible = entry.isIntersecting;
+    });
+  }, {
+    threshold: 0.65
+  });
+
+  videos.forEach(video => {
+    if (!video.hasAttribute("muted")) {
+      video.muted = true;
+    }
+
+    video.addEventListener("ended", () => {
+      if (video._isVisible) {
+        video.play().catch(() => {});
+      }
+    });
+
+    observer1.observe(video);
+  });
+}
+
 export async function renderTweet(t, tweetId, user, action = "prepend", container = document.getElementById("timeline")) {
 
   const likeRef = doc(db, "tweets", tweetId, "likes", user.uid);
@@ -486,33 +593,69 @@ export async function renderTweet(t, tweetId, user, action = "prepend", containe
       mediaHTML = `
   <div class="attachment spoiler-media" onclick="this.classList.add('revealed')">
     <div class="spoiler-overlay"><div class="spoilertxt">spoiler</div></div>
-    <img src="${t.media}" style="max-width: 100%; max-height: 300px; border-radius: 15px;" alt="tweet image" />
+    <img src="${t.media}" style="max-width: 100%; max-height: 300px; border-radius: 10px;" alt="tweet image" />
   </div>`;
     } else {
       mediaHTML = `
       <div class="attachment">
-        <img src="${t.media}" style="max-width: 100%; max-height: 300px; border-radius: 15px;" alt="tweet image" />
+        <img src="${t.media}" style="max-width: 100%; max-height: 300px; border-radius: 10px;" alt="tweet image" />
       </div>`;
     }
   } else if (t.media && t.mediaType === "video") {
     if (containsSpoiler) {
       mediaHTML = `
-  <div class="attachment spoiler-media" onclick="this.classList.add('revealed')">
+  <div class="attachment spoiler-media" style="position: relative; max-width: 100%; max-height: 300px;" onclick="this.classList.add('revealed')">
     <div class="spoiler-overlay"><div class="spoilertxt">spoiler</div></div>
-    <video style="max-width: 100%; max-height: 300px;" muted controls>
+    <video style="max-width: 100%; max-height: 300px; border-radius: 10px;" muted controls>
       <source src="${t.media}" type="video/mp4" />
       Your browser does not support the video tag.
     </video>
+      <button class="sound-toggle-btn" aria-label="Toggle sound" 
+      style="
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        background: rgba(0,0,0,0.5);
+        border: none;
+        border-radius: 50%;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        cursor: pointer;
+        color: white;
+      ">
+      <img src='image/volume-muted.svg'>
+    </button>
   </div>`;
 
     } else {
       mediaHTML = `
-      <div class="attachment">
-        <video controls style="max-width: 100%; max-height: 300px">
-          <source src="${t.media}" type="video/mp4" />
-          Your browser does not support the video tag.
-        </video>
-      </div>`;
+  <div class="attachment" style="position: relative; max-width: 100%; max-height: 300px;">
+    <video muted controls style="max-width: 100%; max-height: 300px; border-radius: 10px;">
+      <source src="${t.media}" type="video/mp4" />
+      Your browser does not support the video tag.
+    </video>
+    <button class="sound-toggle-btn" aria-label="Toggle sound" 
+      style="
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        background: rgba(0,0,0,0.5);
+        border: none;
+        border-radius: 50%;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        cursor: pointer;
+        color: white;
+      ">
+      <img src='image/volume-muted.svg'>
+    </button>
+  </div>`;
     }
   }
 
@@ -639,6 +782,9 @@ export async function renderTweet(t, tweetId, user, action = "prepend", containe
     if (newTweet) {
       applyReadMoreLogic(newTweet);
       observer.observe(newTweet);
+      setupVideoAutoplayOnVisibility(newTweet);
+      setupSoundToggle(newTweet);
+
     } else {
       console.warn("Tweet inserted but not found in DOM for:", tweetId);
     }
@@ -825,8 +971,18 @@ document.body.addEventListener("click", async (e) => {
 
     const tweetEl = document.querySelector(`#tweet-${tweetId}`);
     const tweetText = tweetEl.querySelector("p")?.textContent || "";
-    const tweetMediaEl = tweetEl.querySelector(".attachment")?.querySelector("img, video");
-    const mediaSrc = tweetMediaEl?.getAttribute("src") || "";
+    let tweetMediaEl = tweetEl.querySelector(".attachment img, .attachment video");
+    let mediaSrc = "";
+
+    if (tweetMediaEl) {
+      if (tweetMediaEl.tagName === "VIDEO") {
+        const sourceEl = tweetMediaEl.querySelector("source");
+        mediaSrc = sourceEl ? sourceEl.src || sourceEl.getAttribute("src") : "";
+      } else {
+        mediaSrc = tweetMediaEl.src || tweetMediaEl.getAttribute("src");
+      }
+    }
+
     const isVideo = tweetMediaEl?.tagName === "VIDEO";
     const containsSpoiler = /\|\|.+?\|\|/.test(tweetText);
 
@@ -835,33 +991,37 @@ document.body.addEventListener("click", async (e) => {
     const profile = userDoc.exists() ? userDoc.data() : {};
 
     let mediaHTML = "";
+
+    console.log("Found media element:", tweetMediaEl);
+    console.log("Media source:", mediaSrc);
+
     if (mediaSrc) {
       if (isVideo) {
         mediaHTML = containsSpoiler ?
           `
-        <div class="attachment spoiler-media" onclick="this.classList.add('revealed')">
-          <div class="spoiler-overlay"><div class="spoilertxt">spoiler</div></div>
-          <video style="max-width: 100%; max-height: 300px;" muted controls>
-            <source src="${mediaSrc}" type="video/mp4" />
-          </video>
-        </div>` :
+  <div class="attachment spoiler-media" onclick="this.classList.add('revealed')">
+    <div class="spoiler-overlay"><div class="spoilertxt">spoiler</div></div>
+    <video style="max-width: 100%; max-height: 300px;" muted controls>
+      <source src="${mediaSrc}">
+    </video>
+  </div>` :
           `
-        <div class="attachment">
-          <video controls style="max-width: 100%; max-height: 300px;">
-            <source src="${mediaSrc}" type="video/mp4" />
-          </video>
-        </div>`;
+  <div class="attachment">
+    <video controls style="max-width: 100%; max-height: 300px;">
+      <source src="${mediaSrc}">
+    </video>
+  </div>`;
       } else {
         mediaHTML = containsSpoiler ?
           `
-        <div class="attachment spoiler-media" onclick="this.classList.add('revealed')">
-          <div class="spoiler-overlay"><div class="spoilertxt">spoiler</div></div>
-          <img src="${mediaSrc}" style="max-width: 100%; max-height: 300px; border-radius: 15px;" alt="image" />
-        </div>` :
+  <div class="attachment spoiler-media" onclick="this.classList.add('revealed')">
+    <div class="spoiler-overlay"><div class="spoilertxt">spoiler</div></div>
+    <img src="${mediaSrc}" style="max-width: 100%; max-height: 300px; border-radius: 15px;" alt="image" />
+  </div>` :
           `
-        <div class="attachment">
-          <img src="${mediaSrc}" style="max-width: 100%; max-height: 300px; border-radius: 15px;" alt="image" />
-        </div>`;
+  <div class="attachment">
+    <img src="${mediaSrc}" style="max-width: 100%; max-height: 300px; border-radius: 15px;" alt="image" />
+  </div>`;
       }
     }
 
@@ -1608,15 +1768,10 @@ document.getElementById("sendRetweet").onclick = async () => {
 
   try {
     if (file) {
-      mediaType = file.type.startsWith("video/") ? "video" : "image";
-      media = mediaType === "image" ?
-        await resizeImage(file) :
-        await readFileAsBase64(file);
 
-      if (media.length > 1048487) {
-        alert("Media is too large.");
-        return;
-      }
+      const upload = await uploadToSupabase(file, uid);
+      media = upload.url;
+      mediaType = upload.type;
     }
 
     const mentionsRaw = await extractMentions(text);
@@ -1669,24 +1824,6 @@ document.getElementById("sendRetweet").onclick = async () => {
   }
 };
 
-function showImagePreview(fileInput, previewContainerId) {
-  const file = fileInput.files[0];
-  const preview = document.getElementById(previewContainerId);
-  preview.innerHTML = "";
-
-  if (file && file.type.startsWith("image/")) {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const img = document.createElement("img");
-      img.src = reader.result;
-      img.style.maxWidth = "100%";
-      img.style.maxHeight = "300px";
-      preview.appendChild(img);
-    };
-    reader.readAsDataURL(file);
-  }
-}
-
 document.body.addEventListener("change", (e) => {
   if (e.target.classList.contains("comment-media-input") && e.target.closest(".reply-box")) {
     const commentId = e.target.closest(".reply-box").id.replace("reply-box-", "");
@@ -1694,17 +1831,15 @@ document.body.addEventListener("change", (e) => {
   }
 });
 
-document.getElementById("mediaInput").addEventListener("change", () => {
-  showImagePreview(document.getElementById("mediaInput"), "tweetPreview");
-});
-
 document.getElementById("commentMediaInput").addEventListener("change", () => {
   showImagePreview(document.getElementById("commentMediaInput"), "commentPreview");
 });
 
-document.getElementById("retweetMediaInput").addEventListener("change", () => {
-  showImagePreview(document.getElementById("retweetMediaInput"), "retweetPreview");
-});
+document.getElementById("mediaInput")
+  .addEventListener("change", () => showImagePreview(document.getElementById("mediaInput"), "tweetPreview"));
+
+document.getElementById("retweetMedia-TWEETID")
+  .addEventListener("change", () => showImagePreview(document.getElementById("retweetMedia-TWEETID"), "retweetPreview-TWEETID"));
 
 document.body.addEventListener("click", async (e) => {
   const userLink = e.target.closest(".user-link");
