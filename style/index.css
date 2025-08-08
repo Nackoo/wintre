@@ -229,8 +229,10 @@ svg {
 
 .avatar {
   border-radius: 50%;
-  width: 30px;
-  height: 30px;
+  min-width: 30px;
+  max-width: 30px;
+  max-height: 30px;
+  min-height: 30px;
   object-fit: cover;
   object-position: center;
 }
@@ -370,8 +372,10 @@ span {
 }
 
 .comment-avatar {
-  width: 32px;
-  height: 32px;
+  min-width: 30px;
+  max-width: 30px;
+  max-height: 30px;
+  min-height: 30px;
   border-radius: 50%;
   object-fit: cover;
 }
@@ -482,7 +486,7 @@ span {
   display: block;
 }
 
-#mediaOverlay {
+.mediaOverlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -495,7 +499,7 @@ span {
   align-items: center;
 }
 
-#mediaOverlay.hidden {
+.mediaOverlay.hidden {
   display: none;
 }
 
