@@ -168,9 +168,19 @@ async function loadTweets(targetUid = auth.currentUser.uid) {
 
   const postsRef = collection(db, "users", targetUid, "posts");
   const allPosts = await getDocs(postsRef);
-  const tweetIds = allPosts.docs.map(doc => doc.id);
+  const tweets = [];
 
-  if (tweetIds.length === 0) {
+  for (const docSnap of allPosts.docs) {
+    const tweetDoc = await getDoc(doc(db, "tweets", docSnap.id));
+    if (tweetDoc.exists()) {
+      tweets.push({
+        id: tweetDoc.id,
+        data: tweetDoc.data()
+      });
+    }
+  }
+
+  if (tweets.length === 0) {
     list.innerHTML = `<p id="start1" style="color:grey;text-align:center">this user has no wint</p>`;
     loadMore.style.display = "none";
     return;
@@ -179,24 +189,25 @@ async function loadTweets(targetUid = auth.currentUser.uid) {
     if (startEl) startEl.style.display = 'none';
   }
 
-  const slice = tweetIds.slice(loadedCount, loadedCount + PAGE_SIZE);
-  for (const tweetId of slice) {
-    const tweetDoc = await getDoc(doc(db, "tweets", tweetId));
-    if (tweetDoc.exists()) {
-      const tweetData = tweetDoc.data();
-      await renderTweet(tweetData, tweetId, user, "append", list);
-    }
+  tweets.sort((a, b) => {
+    const aTime = a.data.createdAt?.toMillis ? a.data.createdAt.toMillis() : 0;
+    const bTime = b.data.createdAt?.toMillis ? b.data.createdAt.toMillis() : 0;
+    return bTime - aTime;
+  });
+
+  const slice = tweets.slice(loadedCount, loadedCount + PAGE_SIZE);
+  for (const tweet of slice) {
+    await renderTweet(tweet.data, tweet.id, user, "append", list);
   }
 
   loadedCount += slice.length;
-  loadMore.style.display = loadedCount >= tweetIds.length ? "none" : "block";
+  loadMore.style.display = loadedCount >= tweets.length ? "none" : "block";
 }
 
 loadMore.addEventListener("click", () => {
   const uid = document.getElementById("user-name").dataset.uid;
   loadTweets(uid);
 });
-
 
 document.getElementById("youLoadMore").addEventListener("click", () => loadYourTweets(false));
 
@@ -622,6 +633,12 @@ document.getElementById("userInput").addEventListener("input", () => {
       }
     }
 
+    matched.sort((a, b) => {
+      const aTime = a.tweet.createdAt?.toMillis ? a.tweet.createdAt.toMillis() : 0;
+      const bTime = b.tweet.createdAt?.toMillis ? b.tweet.createdAt.toMillis() : 0;
+      return bTime - aTime;
+    });
+
     listContainer.innerHTML = "";
 
     if (matched.length === 0) {
@@ -642,5 +659,6 @@ document.getElementById("userInput").addEventListener("input", () => {
         await renderTweet(tweet, tweetId, user, "append", listContainer);
       }
     }
+
   }, 1000);
 });
