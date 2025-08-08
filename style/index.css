@@ -380,10 +380,6 @@ span {
   object-fit: cover;
 }
 
-.comment-body {
-  margin-left: 42px;
-}
-
 .reply-btn {
   display: none;
   font-size: 12px;
@@ -393,9 +389,12 @@ span {
   text-decoration: underline;
 }
 
-.reply-block:first-child,
 .comment-item:first-child {
   margin-top: 15px;
+}
+
+.reply-block:first-child {
+  margin-top: 25px;
 }
 
 .reply-box {
@@ -408,10 +407,15 @@ span {
   margin-bottom: -7px;
 }
 
+.comment-header:not(.reply-block .comment-header) {
+  margin-bottom: 13px;
+}
+
 .reply-block {
-  border-left: 3px solid #919394;
+  border-left: 3px solid darkgrey;
   padding-left: 10px;
   margin-top: 13px;
+  padding-left: 14px;
 }
 
 .comment-scrollbox {
