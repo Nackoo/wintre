@@ -2,7 +2,7 @@
 
 this project is powered by firebase & supabase.
 
-## firestore rule
+## firestore rules
 ```
 rules_version = '2';
 service cloud.firestore {
@@ -157,7 +157,7 @@ service cloud.firestore {
 }
 ```
 
-## indexes
+## firestore indexes
 
 | Collection ID | Fields indexed                                       | Query scope  |
 |---------------|------------------------------------------------------|--------------|
