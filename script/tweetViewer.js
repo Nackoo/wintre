@@ -43,14 +43,15 @@ document.body.addEventListener("click", async (e) => {
   const tweetId = link.dataset.id;
   const tweetViewer = document.getElementById("tweetViewer");
   const box = tweetViewer.querySelector("#appendTweet");
-  
+
   if (
     e.target.closest(".attachment2") ||
     e.target.closest(".rt-attachment") ||
-    e.target.closest('.tag-link')
+    e.target.closest('.tag-link') ||
+    e.target.closest(".user-link")
   ) {
     return;
-  } 
+  }
 
   e.preventDefault();
 
