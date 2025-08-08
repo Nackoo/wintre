@@ -199,11 +199,11 @@
           <h3>Rewint</h3>
           <div id="retweetOriginal" style="margin-bottom:20px;"></div>
           <textarea id="retweetText" placeholder="what do you think...?" style="width:100%;height:100px;"></textarea>
-          <div class="attachment" id="retweetPreview"></div>
+          <div class="attachment" id="retweetPreview-TWEETID"></div>
           <div class="flex">
             <button id="sendRetweet">Post</button>
-            <label class="custom-file-btn" for="retweetMediaInput"><img src="image/upload.svg"></label>
-            <input type="file" id="retweetMediaInput" class="hidden-input" accept="image/*" />
+            <label class="custom-file-btn" for="retweetMedia-TWEETID"><img src="image/upload.svg"></label>
+            <input type="file" id="retweetMedia-TWEETID"  class="hidden-input" accept="image/*,video/*">
             <button class="no-bg" style="margin-left: auto;" onclick="
         document.getElementById('retweetText').value = '';
         document.getElementById('retweetOverlay').classList.add('hidden');
@@ -270,7 +270,7 @@
         document.getElementById('tweetOverlay').classList.add('hidden');
       ">Wint</button>
             <label class="custom-file-btn" for="mediaInput"><img src="image/upload.svg"></label>
-            <input type="file" id="mediaInput" class="hidden-input" accept="image/*,video/*" />
+            <input type="file" id="mediaInput" class="hidden-input" accept="image/*,video/*">
             <button class="no-bg" style="margin-left: auto;" onclick="
   document.getElementById('tweetInput').value = ''; 
   document.getElementById('tweetOverlay').classList.add('hidden');
