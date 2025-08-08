@@ -68,7 +68,7 @@ body {
     left: 0;
     right: 0;
     bottom: 0;
-    height: 50px;
+    height: 52px;
     border-top: var(--border);
     display: flex;
     justify-content: space-evenly;
@@ -126,7 +126,7 @@ body {
     top: 0;
     right: 0;
     bottom: 0;
-    width: 50px;
+    width: 52px;
     border-left: var(--border);
     display: flex;
     flex-direction: column;
