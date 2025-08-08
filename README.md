@@ -82,8 +82,16 @@ service cloud.firestore {
       allow create: if request.auth != null &&
         request.resource.data.uid == request.auth.uid;
       allow update: if request.auth != null &&
-        request.writeFields.size() == 1 &&
-        request.writeFields.hasOnly(['likeCount']);
+      (
+    		// Allow updating likeCount
+    		(request.writeFields.size() == 1 &&
+     		request.writeFields.hasOnly(['likeCount'])) ||
+
+    		// Allow tweet owner to update pinnedCommentId
+    		(request.auth.uid == resource.data.uid &&
+     		request.writeFields.size() == 1 &&
+     		request.writeFields.hasOnly(['pinnedCommentId']))
+  		);
       allow delete: if request.auth != null &&
         request.auth.uid == resource.data.uid;
 
