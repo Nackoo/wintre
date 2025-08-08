@@ -24,12 +24,19 @@ service cloud.firestore {
           request.auth.uid == get(/databases/$(database)/documents/tweets/$(tweetId)).data.uid;
       }
     }
+    
+    match /users/{userId}/notifications/{notificationId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid != userId;
+      allow update: if request.auth != null && request.auth.uid == userId;
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
 
     match /users/{userId} {
       allow read: if true;
       allow update: if request.auth != null && request.auth.uid == userId &&
-    request.writeFields.size() == 1 &&
-    request.writeFields.hasOnly(["posts"]);
+        request.writeFields.size() == 1 &&
+        request.writeFields.hasOnly(["posts"]);
       allow write: if request.auth != null && request.auth.uid == userId;
 
       match /mentioned/{tweetId} {
@@ -38,7 +45,6 @@ service cloud.firestore {
           exists(/databases/$(database)/documents/tweets/$(tweetId)) &&
           userId in get(/databases/$(database)/documents/tweets/$(tweetId)).data.mentions;
         allow delete: if request.auth != null &&
-          exists(/databases/$(database)/documents/tweets/$(tweetId)) &&
           request.auth.uid == get(/databases/$(database)/documents/tweets/$(tweetId)).data.uid;
       }
 
