@@ -6,147 +6,76 @@ const usersub = document.getElementById('userSubOverlay');
 const tag = document.getElementById('tagSubOverlay');
 const follow = document.getElementById('followOverlay');
 const viewer = document.getElementById('tweetViewer');
+const profileInput = document.getElementById('profileInput');
+const tweet = document.getElementById('tweetOverlay');
+const retweet = document.getElementById('retweetOverlay');
+const notification = document.getElementById('notificationOverlay');
+const comment = document.getElementById('commentOverlay');
 
 const bookmarksvg = document.querySelector('.smallbar img[src="image/bookmark.svg"]');
 const homesvg = document.querySelector('.smallbar img[src="image/home.svg"]');
 const usersvg = document.querySelector('.smallbar img[src="image/user.svg"]');
 const searchsvg = document.querySelector('.smallbar img[src="image/search.svg"]');
 const settingssvg = document.querySelector('.smallbar img[src="image/settings.svg"]');
+const notifsvg = document.getElementById('notifsvg');
 
 const bookmarkfilled = document.querySelector('.smallbar img[src="image/bookmark-filled.svg"]');
 const homefilled = document.querySelector('.smallbar img[src="image/home-filled.svg"]');
 const userfilled = document.querySelector('.smallbar img[src="image/user-filled.svg"]');
 const searchfilled = document.querySelector('.smallbar img[src="image/search-filled.svg"]');
 const settingsfilled = document.querySelector('.smallbar img[src="image/settings-filled.svg"]');
+const notiffilled = document.querySelector('.smallbar img[src="image/notification-filled.svg"]');
 
-if (bookmarksvg) {
-  bookmarksvg.addEventListener("click", async () => {
-    profile?.classList.add('hidden');
-    profilesub?.classList.add('hidden');
-    user?.classList.add('hidden');
-    usersub?.classList.add('hidden');
-    tag?.classList.add('hidden');
-    follow?.classList.add('hidden');
-    viewer?.classList.add('hidden');
+const panelsToHide = [
+  profile, profilesub, user, usersub, tag, follow,
+  viewer, tweet, retweet, bookmark, notification, comment
+];
 
-    settingsfilled?.classList.add('hidden');
-    homefilled?.classList.add('hidden');
-    bookmarksvg?.classList.add('hidden');
-    userfilled?.classList.add('hidden');
-    searchfilled?.classList.add('hidden');
+const filledIcons = [
+  settingsfilled, 
+  homefilled, 
+  bookmarkfilled, 
+  userfilled, 
+  searchfilled,
+  notiffilled
+];
 
-    settingssvg?.classList.remove('hidden');
-    homesvg?.classList.remove('hidden');
-    usersvg?.classList.remove('hidden');
-    searchsvg?.classList.remove('hidden');
-    bookmarkfilled?.classList.remove('hidden');
+const outlineIcons = {
+  bookmarksvg,
+  homesvg,
+  usersvg,
+  searchsvg,
+  settingssvg,
+  notifsvg
+};
 
-    document.body.classList.add("no-scroll");
-  });
-}
+const filledIconMap = {
+  bookmarksvg: bookmarkfilled,
+  homesvg: homefilled,
+  usersvg: userfilled,
+  searchsvg: searchfilled,
+  settingssvg: settingsfilled,
+  notifsvg: notiffilled
+};
 
-if (homesvg) {
-  homesvg.addEventListener("click", async () => {
-    follow?.classList.add('hidden');
-    profile?.classList.add('hidden');
-    profilesub?.classList.add('hidden');
-    user?.classList.add('hidden');
-    usersub?.classList.add('hidden');
-    bookmark?.classList.add('hidden');
-    tag?.classList.add('hidden');
+const clickHandler = (clickedIcon) => {
+  return () => {
+    panelsToHide.forEach(p => p?.classList.add('hidden'));
+    profileInput.value = '';
+    document.getElementById('profileInput').dispatchEvent(new Event('input'));
+    filledIcons.forEach(icon => icon?.classList.add('hidden'));
+    Object.values(outlineIcons).forEach(icon => icon?.classList.remove('hidden'));
+    outlineIcons[clickedIcon]?.classList.add('hidden');
+    filledIconMap[clickedIcon]?.classList.remove('hidden');
+  };
+};
 
-    settingsfilled?.classList.add('hidden');
-    homesvg?.classList.add('hidden');
-    bookmarkfilled?.classList.add('hidden');
-    userfilled?.classList.add('hidden');
-    searchfilled?.classList.add('hidden');
-
-    settingssvg?.classList.remove('hidden');
-    usersvg?.classList.remove('hidden');
-    searchsvg?.classList.remove('hidden');
-    bookmarksvg?.classList.remove('hidden');
-    homefilled?.classList.remove('hidden');
-
-    document.body.classList.remove("no-scroll");
-  });
-}
-
-if (usersvg) {
-  usersvg.addEventListener("click", async () => {
-    bookmark?.classList.add('hidden');
-    profilesub?.classList.add('hidden');
-    user?.classList.add('hidden');
-    usersub?.classList.add('hidden');
-    tag?.classList.add('hidden');
-    follow?.classList.add('hidden');
-    viewer?.classList.add('hidden');
-
-    settingsfilled?.classList.add('hidden');
-    homefilled?.classList.add('hidden');
-    bookmarkfilled?.classList.add('hidden');
-    searchfilled?.classList.add('hidden');
-    usersvg?.classList.add('hidden');
-
-    settingssvg?.classList.remove('hidden');
-    searchsvg?.classList.remove('hidden');
-    bookmarksvg?.classList.remove('hidden');
-    homesvg?.classList.remove('hidden');
-    userfilled?.classList.remove('hidden');
-
-    document.body.classList.add("no-scroll");
-  });
-}
-
-if (searchsvg) {
-  searchsvg.addEventListener("click", async () => {
-    bookmark?.classList.add('hidden');
-    profile?.classList.add('hidden');
-    profilesub?.classList.add('hidden');
-    usersub?.classList.add('hidden');
-    tag?.classList.add('hidden');
-    viewer?.classList.add('hidden');
-
-    settingsfilled?.classList.add('hidden');
-    homefilled?.classList.add('hidden');
-    bookmarkfilled?.classList.add('hidden');
-    userfilled?.classList.add('hidden');
-    searchsvg?.classList.add('hidden');
-
-    settingssvg?.classList.remove('hidden');
-    bookmarksvg?.classList.remove('hidden');
-    homesvg?.classList.remove('hidden');
-    usersvg?.classList.remove('hidden');
-    searchfilled?.classList.remove('hidden');
-
-    document.body.classList.add("no-scroll");
-  });
-}
-
-if (settingssvg) {
-  settingssvg.addEventListener("click", async () => {
-    bookmark?.classList.add('hidden');
-    profile?.classList.add('hidden');
-    user?.classList.add('hidden');
-    usersub?.classList.add('hidden');
-    tag?.classList.add('hidden');
-    follow?.classList.add('hidden');
-    viewer?.classList.add('hidden');
-
-    homefilled?.classList.add('hidden');
-    bookmarkfilled?.classList.add('hidden');
-    userfilled?.classList.add('hidden');
-    searchfilled?.classList.add('hidden');
-    settingssvg?.classList.add('hidden');
-
-    bookmarksvg?.classList.remove('hidden');
-    homesvg?.classList.remove('hidden');
-    usersvg?.classList.remove('hidden');
-    searchsvg?.classList.remove('hidden');
-    settingsfilled?.classList.remove('hidden');
-
-    document.body.classList.add("no-scroll");
-  });
-}
+Object.keys(outlineIcons).forEach(iconName => {
+  const icon = outlineIcons[iconName];
+  if (icon) {
+    icon.addEventListener("click", clickHandler(iconName));
+  }
+});
 
 function hidebookmark() {
   document.querySelector('.useroverlay').classList.add('hidden');
@@ -154,7 +83,6 @@ function hidebookmark() {
   bookmarkfilled.classList.add('hidden');
   bookmarksvg.classList.remove('hidden');
   homefilled.classList.remove('hidden');
-  document.body.classList.remove("no-scroll");
 }
 
 function hideprofile() {
@@ -163,7 +91,8 @@ function hideprofile() {
   homefilled.classList.remove('hidden');
   userfilled.classList.add('hidden');
   usersvg.classList.remove('hidden');
-  document.body.classList.remove("no-scroll");
+  profileInput.value = '';
+  document.getElementById('profileInput').dispatchEvent(new Event('input'));
 }
 
 function hideuser() {
@@ -172,19 +101,27 @@ function hideuser() {
   homefilled.classList.remove('hidden');
   searchfilled.classList.add('hidden');
   searchsvg.classList.remove('hidden');
-  document.body.classList.remove("no-scroll");
 }
 
 function hidesettings() {
-  document.querySelector('#profileSubOverlay').classList.add('hidden')
+  document.querySelector('#profileSubOverlay').classList.add('hidden');
   homesvg.classList.add('hidden');
   homefilled.classList.remove('hidden');
   settingsfilled.classList.add('hidden');
   settingssvg.classList.remove('hidden');
-  document.body.classList.remove("no-scroll");
+}
+
+function hidenotif() {
+  notification.classList.add('hidden');
+  homesvg.classList.add('hidden');
+  homefilled.classList.remove('hidden');
+  notiffilled.classList.add('hidden');
+  notifsvg.classList.remove('hidden');
 }
 
 function closeUser() {
   document.querySelector('#userSubOverlay').classList.add('hidden');
   document.querySelector('#userOverlay').classList.remove('hidden');
+  document.getElementById('userInput').value = '';
+  document.getElementById('userInput').dispatchEvent(new Event("input"));
 }
