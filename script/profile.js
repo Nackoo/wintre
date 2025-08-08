@@ -102,8 +102,7 @@ function escapeHTML(text) {
   );
 }
 
-let yourLastDoc = null;
-
+let youLastVisibleDoc = null;
 let youLoadedCount = 0;
 const YOU_PAGE_SIZE = 30;
 const youList = document.getElementById("youList");
@@ -113,41 +112,51 @@ async function loadYourTweets() {
   const user = auth.currentUser;
   if (!user) return;
 
-  const postsRef = collection(db, "users", user.uid, "posts");
-  const allPosts = await getDocs(postsRef);
-  const tweetIds = [];
+  const tweetsRef = collection(db, "tweets");
+  let q;
 
-  for (const docSnap of allPosts.docs) {
-    const tweetId = docSnap.id;
-    const tweetDoc = await getDoc(doc(db, "tweets", tweetId));
-    if (tweetDoc.exists()) tweetIds.push(tweetId);
+  if (!youLastVisibleDoc) {
+
+    q = query(
+      tweetsRef,
+      where("uid", "==", user.uid),
+      orderBy("createdAt", "desc"),
+      limit(YOU_PAGE_SIZE)
+    );
+  } else {
+
+    q = query(
+      tweetsRef,
+      where("uid", "==", user.uid),
+      orderBy("createdAt", "desc"),
+      startAfter(youLastVisibleDoc),
+      limit(YOU_PAGE_SIZE)
+    );
   }
 
+  const querySnapshot = await getDocs(q);
 
-  if (tweetIds.length === 0) {
+  if (querySnapshot.empty && youLoadedCount === 0) {
     youList.innerHTML = `<p id="start" style="color:grey;text-align:center">post to get started</p>`;
     youLoadMore.style.display = "none";
     return;
   } else {
-    const startEl = document.getElementById('start');
-    if (startEl) startEl.style.display = 'none';
+    const startEl = document.getElementById("start");
+    if (startEl) startEl.style.display = "none";
   }
 
-  const slice = tweetIds.slice(youLoadedCount, youLoadedCount + YOU_PAGE_SIZE);
-  for (const tweetId of slice) {
-    const tweetDoc = await getDoc(doc(db, "tweets", tweetId));
-    if (tweetDoc.exists()) {
-      const tweetData = tweetDoc.data();
-      await renderTweet(tweetData, tweetId, user, "append", youList);
-    }
+  for (const docSnap of querySnapshot.docs) {
+    const tweetData = docSnap.data();
+    await renderTweet(tweetData, docSnap.id, user, "append", youList);
   }
 
-  youLoadedCount += slice.length;
+  youLoadedCount += querySnapshot.docs.length;
 
-  if (youLoadedCount >= tweetIds.length) {
+  if (querySnapshot.docs.length < YOU_PAGE_SIZE) {
     youLoadMore.style.display = "none";
   } else {
     youLoadMore.style.display = "block";
+    youLastVisibleDoc = querySnapshot.docs[querySnapshot.docs.length - 1];
   }
 }
 
