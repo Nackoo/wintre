@@ -1,5 +1,7 @@
 # wintre
 
+this project is powered by firebase & supabase.
+
 ## firestore rule
 ```
 rules_version = '2';
