@@ -485,22 +485,50 @@ function setupSoundToggle(tweetElement) {
 
 function setupVideoAutoplayOnVisibility(tweetElement) {
   const videos = tweetElement.querySelectorAll("video");
+  const visibilityMap = new Map();
+
+  function isCoveredByOverlay(video) {
+    const overlays = document.querySelectorAll('.overlay, .useroverlay, .mediaOverlay');
+    if (overlays.length === 0) return false;
+
+    const videoRect = video.getBoundingClientRect();
+
+    for (const overlay of overlays) {
+      const overlayRect = overlay.getBoundingClientRect();
+
+      if (
+        overlayRect.width > 0 &&
+        overlayRect.height > 0 &&
+        !(overlayRect.right < videoRect.left ||
+          overlayRect.left > videoRect.right ||
+          overlayRect.bottom < videoRect.top ||
+          overlayRect.top > videoRect.bottom)
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function updateVideoState(video) {
+    const isVisible = visibilityMap.get(video) || false;
+    const covered = isCoveredByOverlay(video);
+
+    if (isVisible && !covered) {
+      video.play().catch(() => {});
+      video._isVisible = true;
+    } else {
+      video.pause();
+      video._isVisible = false;
+    }
+  }
 
   const observer1 = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
-      const video = entry.target;
-
-      if (entry.isIntersecting) {
-        video.play().catch(() => {});
-      } else {
-        video.pause();
-      }
-
-      video._isVisible = entry.isIntersecting;
+      visibilityMap.set(entry.target, entry.isIntersecting);
+      updateVideoState(entry.target);
     });
-  }, {
-    threshold: 0.65
-  });
+  }, { threshold: 0.65 });
 
   videos.forEach(video => {
     if (!video.hasAttribute("muted")) {
@@ -515,6 +543,19 @@ function setupVideoAutoplayOnVisibility(tweetElement) {
 
     observer1.observe(video);
   });
+
+  function onScrollOrResize() {
+    videos.forEach(video => updateVideoState(video));
+  }
+  window.addEventListener('scroll', onScrollOrResize, { passive: true });
+  window.addEventListener('resize', onScrollOrResize);
+
+  const overlaysParent = document.body; 
+  const mutationObserver = new MutationObserver(() => {
+    videos.forEach(video => updateVideoState(video));
+  });
+
+  mutationObserver.observe(overlaysParent, { attributes: true, childList: true, subtree: true });
 }
 
 export async function renderTweet(t, tweetId, user, action = "prepend", container = document.getElementById("timeline")) {
