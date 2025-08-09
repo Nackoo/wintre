@@ -309,22 +309,28 @@
   border-radius: 10px;
   cursor: pointer;
   border: none !important;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
 }
 
 .notification.comment {
   background: linear-gradient(to right,rgba(0, 122, 255, 0.3), black);
+  border-left: 4px solid rgb(0, 122, 255) !important;
 }
 
 .notification.reply {
-   background: linear-gradient(to right, rgba(88, 86, 214, 0.3), black);
+  background: linear-gradient(to right, rgba(88, 86, 214, 0.3), black);
+  border-left: 4px solid rgb(88, 86, 214) !important;
 }
 
 .notification.mention {
   background: linear-gradient(to right, rgba(255, 149, 0, 0.3), black);
+  border-left: 4px solid rgb(255, 149, 0) !important;
 }
 
 .notification.retweet {
   background: linear-gradient(to right, rgba(52, 199, 89, 0.3), black);
+  border-left: 4px solid rgb(52, 199, 89) !important;
 }
 
 .notification.default {
