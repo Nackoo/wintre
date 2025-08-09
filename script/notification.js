@@ -37,7 +37,7 @@ function clearNotificationsUI() {
 
 function createNotificationElement(notification) {
   const div = document.createElement("div");
-  div.className = "notification";
+  div.className = `notification ${notification.type || 'default'}`;
 
   let content = "";
   const hasText = notification.tweetText?.trim().length > 0;
@@ -51,7 +51,12 @@ function createNotificationElement(notification) {
   } else if (notification.type === "reply") {
     content = `<i>${notification.senderName}</i> replied "<b>${textClamp(notification.text)}</b>" on your comment "<b>${textClamp(notification.replyToText)}</b>"`;
   } else if (notification.type === "mention") {
-    content = `<i>${notification.senderName}</i> mentioned you on their wint.`;
+    content = `<i>${notification.senderName}</i> mentioned you on their wint <b>${tweetPreview}</b>.`;
+  } else if (notification.type === "retweet") {
+    const replyPart = notification.text?.trim() ?
+      ` "<b>${textClamp(notification.text)}</b>"` :
+      "";
+    content = `<i>${notification.senderName}</i> rewinted ${replyPart} on your post <b>${tweetPreview}</b>`;
   } else {
     content = `<i>${notification.senderName}</i> sent a notification`;
   }
@@ -62,7 +67,9 @@ function createNotificationElement(notification) {
       <span style="color:grey;font-size:13px">
         ${formatTime(notification.createdAt.toDate())}
       </span>
-      <button class="delete-notif-btn" style="background:none;margin-left:auto;"><img src="image/trash.svg"></button>
+      <button class="delete-notif-btn" style="background:none;margin-left:auto;">
+        <img src="image/trash.svg">
+      </button>
     </div>
   `;
 
@@ -71,7 +78,7 @@ function createNotificationElement(notification) {
   if (notification.replyId) div.dataset.replyId = notification.replyId;
   div.dataset.type = notification.type;
 
-  div.querySelector("p").addEventListener("click", () => {
+  div.addEventListener("click", () => {
     handleNotificationClick(div.dataset);
   });
 
@@ -113,7 +120,7 @@ export async function handleNotificationClick({
 
   await renderTweet(tweetSnap.data(), tweetId, auth.currentUser, "append", box);
 
-  if (type !== "mention") {
+  if (type !== "mention" && type !== "retweet") {
     const commentBtn = box.querySelector(`.comment-btn[data-id="${tweetId}"]`);
     if (commentBtn) commentBtn.click();
   }
@@ -296,7 +303,6 @@ export async function sendCommentNotification(tweetId, commentText) {
     createdAt: serverTimestamp(),
     tweetId,
     tweetText: tweetSnap.data().text || "",
-    tweetMedia: tweetSnap.data().media?.[0] || null,
     read: false
   });
 
@@ -353,7 +359,39 @@ export async function sendMentionNotification(tweetId, mentionedUserId) {
     createdAt: serverTimestamp(),
     tweetId,
     tweetText: tweetSnap.data().text || "",
-    tweetMedia: tweetSnap.data().media?.[0] || null,
+    read: false
+  });
+}
+
+export async function sendRetweetNotification(originalTweetId, replyText, retweetId) {
+  const sender = auth.currentUser;
+  if (!sender) return;
+
+  const tweetSnap = await getDoc(doc(db, "tweets", originalTweetId));
+  if (!tweetSnap.exists()) return;
+
+  const originalAuthorId = tweetSnap.data().uid;
+  if (sender.uid === originalAuthorId) return;
+
+  const senderDoc = await getDoc(doc(db, "users", sender.uid));
+  const senderName = senderDoc.exists() ? senderDoc.data().displayName : "Someone";
+
+  const notificationRef = doc(
+    db,
+    "users",
+    originalAuthorId,
+    "notifications",
+    `${retweetId}-retweet-${Date.now()}`
+  );
+
+  await setDoc(notificationRef, {
+    type: "retweet",
+    senderName,
+    text: replyText || "",
+    createdAt: serverTimestamp(),
+    tweetId: retweetId,
+    originalTweetId: originalTweetId,
+    tweetText: tweetSnap.data().text || "",
     read: false
   });
 }
