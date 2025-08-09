@@ -303,10 +303,32 @@
 }
 
 .notification {
+  padding: 10px;
   padding-bottom: 10px;
-  border-bottom: var(--border);
-  margin-bottom: 10px;
+  margin-bottom: 13px;
+  border-radius: 10px;
   cursor: pointer;
+  border: none !important;
+}
+
+.notification.comment {
+  background: linear-gradient(to right,rgba(0, 122, 255, 0.3), black);
+}
+
+.notification.reply {
+   background: linear-gradient(to right, rgba(88, 86, 214, 0.3), black);
+}
+
+.notification.mention {
+  background: linear-gradient(to right, rgba(255, 149, 0, 0.3), black);
+}
+
+.notification.retweet {
+  background: linear-gradient(to right, rgba(52, 199, 89, 0.3), black);
+}
+
+.notification.default {
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .date-divider {
@@ -315,7 +337,7 @@
   text-align: center;
   color: gray;
   font-size: 12px;
-  margin: 20px 0;
+  margin: 20px -10px;
   position: relative;
 }
 
@@ -356,4 +378,9 @@
     height: 25px;
     width: 25px;
   }
+}
+
+#sendComment.disabled,
+.send-reply-btn.disabled {
+  background: grey;
 }
