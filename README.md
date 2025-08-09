@@ -1,4 +1,4 @@
-<img style="width: 128px; height: 128px" src="/image/W.png"><h1>wintre - micro-blogging social media</h1>
+<img style="width: 158px; height: 158px" src="/image/W.png"><h1>wintre - micro-blogging social media</h1>
 
 this project is powered by firebase & supabase.
 
