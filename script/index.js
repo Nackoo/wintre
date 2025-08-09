@@ -1,7 +1,7 @@
 import { app, auth, db, storage, initializeApp, getAuth, increment, onAuthStateChanged, getFirestore, collection, addDoc, query, orderBy, limit, startAfter, where, onSnapshot, doc, setDoc, deleteDoc, getDoc, getDocs, getCountFromServer, getStorage, ref, uploadBytes, getDownloadURL, updateDoc } from "./firebase.js";
 import { extractMentions } from './mention.js';
 import { handleTags } from './tags.js';
-import { sendCommentNotification, sendReplyNotification, listenForUnreadNotifications, loadNotifications, sendMentionNotification } from './notification.js';
+import { sendCommentNotification, sendReplyNotification, listenForUnreadNotifications, loadNotifications, sendMentionNotification, sendRetweetNotification } from './notification.js';
 import { createClient, SUPABASE_URL, SUPABASE_ANON_KEY, MAX_FILE_BYTES, supabase } from "./firebase.js"
 
 let lastTweet = null;
@@ -528,7 +528,9 @@ function setupVideoAutoplayOnVisibility(tweetElement) {
       visibilityMap.set(entry.target, entry.isIntersecting);
       updateVideoState(entry.target);
     });
-  }, { threshold: 0.65 });
+  }, {
+    threshold: 0.65
+  });
 
   videos.forEach(video => {
     if (!video.hasAttribute("muted")) {
@@ -547,15 +549,21 @@ function setupVideoAutoplayOnVisibility(tweetElement) {
   function onScrollOrResize() {
     videos.forEach(video => updateVideoState(video));
   }
-  window.addEventListener('scroll', onScrollOrResize, { passive: true });
+  window.addEventListener('scroll', onScrollOrResize, {
+    passive: true
+  });
   window.addEventListener('resize', onScrollOrResize);
 
-  const overlaysParent = document.body; 
+  const overlaysParent = document.body;
   const mutationObserver = new MutationObserver(() => {
     videos.forEach(video => updateVideoState(video));
   });
 
-  mutationObserver.observe(overlaysParent, { attributes: true, childList: true, subtree: true });
+  mutationObserver.observe(overlaysParent, {
+    attributes: true,
+    childList: true,
+    subtree: true
+  });
 }
 
 export async function renderTweet(t, tweetId, user, action = "prepend", container = document.getElementById("timeline")) {
@@ -740,7 +748,7 @@ export async function renderTweet(t, tweetId, user, action = "prepend", containe
             </div>
           </div>
         `;
-      } else if (hasVideo) {
+      } else if (hasVideo && hasText) {
         retweetHTML = `
           <div class="tweet retweet original-tweet-link" data-id="${t.retweetOf}">
             <div class="flex" style="gap:10px; align-items:center;">
@@ -748,13 +756,31 @@ export async function renderTweet(t, tweetId, user, action = "prepend", containe
               <strong class="user-link" data-uid="${rt.uid}" style="cursor:pointer">${escapeHTML(rtDisplayName)}</strong>
               <span style="color:grey;">${rDate}</span>
             </div>
-            <div class="rt-attachment" style="margin-top: 10px;">
-              <video controls style="max-width: 100%; max-height: 300px; border-radius: 10px;">
+            <div style="display: flex; gap: 12px; align-items: flex-start; margin-top: 20px;">
+              <div class="attachment2">
+              <video controls style="max-width: 100px; max-height: 100px; border-radius: 10px;">
                 <source src="${rt.media}" type="video/mp4" />
               </video>
+              </div>
+              <p style="margin: 0;">${await parseMentionsToLinks(rt.text)}</p>
             </div>
           </div>
-        `;
+  `;
+      } else if (hasVideo) {
+        retweetHTML = `
+    <div class="tweet retweet original-tweet-link" data-id="${t.retweetOf}">
+      <div class="flex" style="gap:10px; align-items:center;">
+        <img class="avatar" src="${escapeHTML(rtAvatar)}" onerror="this.src='image/default-avatar.jpg'" width="30">
+        <strong class="user-link" data-uid="${rt.uid}" style="cursor:pointer">${escapeHTML(rtDisplayName)}</strong>
+        <span style="color:grey;">${rDate}</span>
+      </div>
+      <div class="rt-attachment" style="margin-top: 10px;">
+        <video controls style="max-width: 100%; max-height: 300px; border-radius: 10px;">
+          <source src="${rt.media}" type="video/mp4" />
+        </video>
+      </div>
+    </div>
+  `;
       } else {
         retweetHTML = `
           <div class="tweet retweet original-tweet-link" data-id="${t.retweetOf}">
@@ -866,44 +892,41 @@ async function deleteSubcollectionDocs(tweetId, subcollectionName) {
 
 document.body.addEventListener("click", async (e) => {
   const deleteBtn = e.target.closest(".delete-btn");
-  if (deleteBtn) {
-    const tweetId = deleteBtn.dataset.id;
-    const userId = auth.currentUser.uid;
+  if (!deleteBtn) return;
 
-    if (confirm("Are you sure you want to delete this wint?")) {
-      const tweetRef = doc(db, "tweets", tweetId);
-      const tweetSnap = await getDoc(tweetRef);
+  const tweetId = deleteBtn.dataset.id;
+  const userId = auth.currentUser.uid;
 
-      if (!tweetSnap.exists()) return;
-      const data = tweetSnap.data();
+  if (!confirm("Are you sure you want to delete this wint?")) return;
 
-      const tagDeletes = (data.tags || []).map(tag =>
-        deleteDoc(doc(db, "tags", tag, "tweets", tweetId))
-      );
+  const tweetRef = doc(db, "tweets", tweetId);
+  const tweetSnap = await getDoc(tweetRef);
 
-      const mentionDeletes = (data.mentions || []).map(uid =>
-        deleteDoc(doc(db, "users", uid, "mentioned", tweetId))
-      );
+  if (!tweetSnap.exists()) return;
+  const data = tweetSnap.data();
 
-      await Promise.all([
-        deleteSubcollectionDocs(tweetId, "comments"),
-        deleteSubcollectionDocs(tweetId, "likes"),
-        deleteSubcollectionDocs(tweetId, "views"),
-        deleteDoc(tweetRef),
-        deleteDoc(doc(db, "users", userId, "posts", tweetId)),
-        ...tagDeletes,
-        ...mentionDeletes,
-      ]);
+  await deleteSubcollectionDocs(tweetId, "comments");
+  await deleteSubcollectionDocs(tweetId, "likes");
+  await deleteSubcollectionDocs(tweetId, "views");
 
-      await updateDoc(doc(db, "users", userId), {
-        posts: increment(-1)
-      });
-
-      const el = document.getElementById("tweet-" + tweetId);
-      if (el) el.remove();
-    }
+  for (const tag of data.tags || []) {
+    await deleteDoc(doc(db, "tags", tag, "tweets", tweetId));
   }
 
+  for (const uid of data.mentions || []) {
+    await deleteDoc(doc(db, "users", uid, "mentioned", tweetId));
+  }
+
+  await deleteDoc(tweetRef);
+
+  await deleteDoc(doc(db, "users", userId, "posts", tweetId));
+
+  await updateDoc(doc(db, "users", userId), {
+    posts: increment(-1)
+  });
+
+  const el = document.getElementById("tweet-" + tweetId);
+  if (el) el.remove();
 });
 
 const observer = new IntersectionObserver(async (entries, obs) => {
@@ -1033,9 +1056,6 @@ document.body.addEventListener("click", async (e) => {
 
     let mediaHTML = "";
 
-    console.log("Found media element:", tweetMediaEl);
-    console.log("Media source:", mediaSrc);
-
     if (mediaSrc) {
       if (isVideo) {
         mediaHTML = containsSpoiler ?
@@ -1074,36 +1094,51 @@ document.body.addEventListener("click", async (e) => {
     applyReadMoreLogic(commentTweet);
 
     document.getElementById("sendComment").onclick = async () => {
-      const commentText = document.getElementById("commentInput").value.trim();
-      const file = document.querySelector(".comment-media-input").files[0];
-      const user = auth.currentUser;
-      let media = "",
-        mediaType = "";
+      const sendBtn = document.getElementById("sendComment");
+      sendBtn.disabled = true;
+      sendBtn.classList.add('disabled');
 
-      if (file) {
-        mediaType = "image";
-        media = await resizeImage(file);
-        if (media.length > 1048487) {
-          alert("Image is too large.");
-          return;
+      try {
+        const commentText = document.getElementById("commentInput").value.trim();
+        const file = document.querySelector(".comment-media-input").files[0];
+        const user = auth.currentUser;
+        let media = "",
+          mediaType = "";
+
+        if (file) {
+          mediaType = "image";
+          media = await resizeImage(file);
+          if (media.length > 1048487) {
+            alert("Image is too large.");
+            sendBtn.disabled = false;
+            sendBtn.classList.remove('disabled');
+            return;
+          }
         }
-      }
 
-      if (commentText || media) {
-        await addDoc(collection(db, "tweets", tweetId, "comments"), {
-          text: commentText,
-          media,
-          mediaType,
-          uid: user.uid,
-          likeCount: 0,
-          createdAt: new Date()
-        });
-        document.getElementById("commentInput").value = "";
-        document.querySelector(".comment-media-input").value = "";
-        document.getElementById("commentPreview").innerHTML = "";
-        loadComments(tweetId);
+        if (commentText || media) {
+          await addDoc(collection(db, "tweets", tweetId, "comments"), {
+            text: commentText,
+            media,
+            mediaType,
+            uid: user.uid,
+            likeCount: 0,
+            createdAt: new Date()
+          });
+
+          document.getElementById("commentInput").value = "";
+          document.querySelector(".comment-media-input").value = "";
+          document.getElementById("commentPreview").innerHTML = "";
+          loadComments(tweetId);
+
+          await sendCommentNotification(tweetId, commentText);
+        }
+      } catch (err) {
+        console.error("Error sending comment:", err);
+      } finally {
+        sendBtn.disabled = false;
+        sendBtn.classList.remove('disabled');
       }
-      await sendCommentNotification(tweetId, commentText);
     };
     loadComments(tweetId);
   }
@@ -1417,55 +1452,72 @@ document.body.addEventListener("click", async (e) => {
 
   const sendReplyBtn = e.target.closest(".send-reply-btn");
   if (sendReplyBtn) {
-    const commentId = e.target.dataset.id;
-    const box = e.target.closest(".reply-box");
-    const textarea = box.querySelector(".reply-text");
-    const file = box.querySelector(".comment-media-input")?.files[0];
-    const text = textarea.value.trim();
-    const tweetId = box.closest(".comment-item").querySelector(".comment-like-btn")?.dataset.tweet;
+    sendReplyBtn.disabled = true;
+    sendReplyBtn.classList.add('disabled');
 
-    const uid = auth.currentUser.uid;
-    const user = auth.currentUser;
-    const userDoc = await getDoc(doc(db, "users", uid));
-    const profile = userDoc.exists() ? userDoc.data() : {};
+    try {
+      const commentId = e.target.dataset.id;
+      const box = e.target.closest(".reply-box");
+      const textarea = box.querySelector(".reply-text");
+      const file = box.querySelector(".comment-media-input")?.files[0];
+      const text = textarea.value.trim();
+      const tweetId = box.closest(".comment-item").querySelector(".comment-like-btn")?.dataset.tweet;
 
-    const originalCommenterId = box.closest(".comment-item")?.dataset.uid;
-    const originalCommentText = box.closest(".comment-item")?.dataset.text || "";
+      const uid = auth.currentUser.uid;
+      const user = auth.currentUser;
+      const userDoc = await getDoc(doc(db, "users", uid));
+      const profile = userDoc.exists() ? userDoc.data() : {};
 
-    let media = "",
-      mediaType = "";
+      const originalCommenterId = box.closest(".comment-item")?.dataset.uid;
+      const originalCommentText = box.closest(".comment-item")?.dataset.text || "";
 
-    if (file) {
-      mediaType = "image";
-      media = await resizeImage(file);
-      if (media.length > 1048487) {
-        alert("Image is too large.");
+      let media = "",
+        mediaType = "";
+
+      if (file) {
+        mediaType = "image";
+        media = await resizeImage(file);
+        if (media.length > 1048487) {
+          alert("Image is too large.");
+          sendReplyBtn.disabled = false;
+          sendReplyBtn.classList.remove('disabled');
+          return;
+        }
+      }
+
+      if (!text && !media) {
+        sendReplyBtn.disabled = false;
+        sendReplyBtn.classList.remove('disabled');
         return;
       }
+
+      await addDoc(collection(db, "tweets", tweetId, "comments", commentId, "replies"), {
+        text,
+        media,
+        mediaType,
+        uid: user.uid,
+        createdAt: new Date()
+      });
+
+      await sendReplyNotification(tweetId, commentId, text, originalCommenterId, originalCommentText);
+
+      textarea.value = "";
+      if (box.querySelector(".comment-media-input")) {
+        box.querySelector(".comment-media-input").value = "";
+      }
+      const preview = document.getElementById(`replyPreview-${commentId}`);
+      if (preview) preview.innerHTML = "";
+
+      loadedReplies[commentId] = 0;
+      document.getElementById("replies-" + commentId).innerHTML = "";
+      await loadReplies(tweetId, commentId);
+
+    } catch (err) {
+      console.error("Error sending reply:", err);
+    } finally {
+      sendReplyBtn.disabled = false;
+      sendReplyBtn.classList.remove('disabled');
     }
-
-    if (!text && !media) return;
-
-    await addDoc(collection(db, "tweets", tweetId, "comments", commentId, "replies"), {
-      text,
-      media,
-      mediaType,
-      uid: user.uid,
-      createdAt: new Date()
-    });
-
-    await sendReplyNotification(tweetId, commentId, text, originalCommenterId, originalCommentText);
-
-    textarea.value = "";
-    if (box.querySelector(".comment-media-input")) {
-      box.querySelector(".comment-media-input").value = "";
-    }
-    const preview = document.getElementById(`replyPreview-${commentId}`);
-    if (preview) preview.innerHTML = "";
-
-    loadedReplies[commentId] = 0;
-    document.getElementById("replies-" + commentId).innerHTML = "";
-    await loadReplies(tweetId, commentId);
   }
 
   const cancelReplyBtn = e.target.closest(".cancel-reply-btn");
@@ -1798,7 +1850,7 @@ document.body.addEventListener("click", async (e) => {
 document.getElementById("sendRetweet").onclick = async () => {
   const text = document.getElementById("retweetText").value.trim();
   const originalId = selectedRetweet;
-  const file = document.getElementById("retweetMediaInput").files[0];
+  const file = document.getElementById("retweetMedia-TWEETID").files[0];
 
   const user = auth.currentUser;
   const uid = user?.uid;
@@ -1831,6 +1883,8 @@ document.getElementById("sendRetweet").onclick = async () => {
       })
     });
 
+    await sendRetweetNotification(originalId, text, tweetRef.id);
+
     await Promise.all(
       mentions.map(mentionUid =>
         Promise.all([
@@ -1852,8 +1906,8 @@ document.getElementById("sendRetweet").onclick = async () => {
     });
 
     document.getElementById("retweetText").value = "";
-    document.getElementById("retweetMediaInput").value = "";
-    document.getElementById("retweetPreview").innerHTML = "";
+    document.getElementById("retweetMedia-TWEETID").value = "";
+    document.getElementById("retweetPreview-TWEETID").innerHTML = "";
     document.getElementById("retweetOverlay").classList.add("hidden");
 
   } catch (error) {
