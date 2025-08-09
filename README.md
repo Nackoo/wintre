@@ -1,4 +1,4 @@
-<img src="/image/W.png"><h1>wintre - micro-blogging social media</h1>
+<img style="width: 128px; height: 128px" src="/image/W.png"><h1>wintre - micro-blogging social media</h1>
 
 this project is powered by firebase & supabase.
 
@@ -172,3 +172,5 @@ service cloud.firestore {
 |---------------------|--------------|-------------------------------|
 | allow_public_read   | anon         | `(bucket_id = 'wints'::text)` |
 | allow_public_upload | anon         | `(bucket_id = 'wints'::text)` |
+
+made by Nackoo
