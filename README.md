@@ -1,6 +1,4 @@
-# wintre
-
-## micro-blogging social media
+<img src="/image/W.png"><h1>wintre - micro-blogging social media</h1>
 
 this project is powered by firebase & supabase.
 
