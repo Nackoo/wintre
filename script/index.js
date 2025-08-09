@@ -193,19 +193,6 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 
-window.addEventListener("scroll", () => {
-  const tweets = document.querySelectorAll(".tweet");
-  if (tweets.length < 25 || loadingMore || noMoreTweets) return;
-
-  const lastVisible = tweets[24];
-  const rect = lastVisible.getBoundingClientRect();
-  const visible = rect.top < window.innerHeight && rect.bottom >= 0;
-
-  if (visible) {
-    loadTweets();
-  }
-});
-
 function linkify(text) {
   const escaped = escapeHTML(text);
   return escaped.replace(/(https:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
@@ -528,9 +515,7 @@ function setupVideoAutoplayOnVisibility(tweetElement) {
       visibilityMap.set(entry.target, entry.isIntersecting);
       updateVideoState(entry.target);
     });
-  }, {
-    threshold: 0.65
-  });
+  }, { threshold: 0.65 });
 
   videos.forEach(video => {
     if (!video.hasAttribute("muted")) {
@@ -549,21 +534,15 @@ function setupVideoAutoplayOnVisibility(tweetElement) {
   function onScrollOrResize() {
     videos.forEach(video => updateVideoState(video));
   }
-  window.addEventListener('scroll', onScrollOrResize, {
-    passive: true
-  });
+  window.addEventListener('scroll', onScrollOrResize, { passive: true });
   window.addEventListener('resize', onScrollOrResize);
 
-  const overlaysParent = document.body;
+  const overlaysParent = document.body; 
   const mutationObserver = new MutationObserver(() => {
     videos.forEach(video => updateVideoState(video));
   });
 
-  mutationObserver.observe(overlaysParent, {
-    attributes: true,
-    childList: true,
-    subtree: true
-  });
+  mutationObserver.observe(overlaysParent, { attributes: true, childList: true, subtree: true });
 }
 
 export async function renderTweet(t, tweetId, user, action = "prepend", container = document.getElementById("timeline")) {
@@ -749,7 +728,7 @@ export async function renderTweet(t, tweetId, user, action = "prepend", containe
           </div>
         `;
       } else if (hasVideo && hasText) {
-        retweetHTML = `
+  retweetHTML = `
           <div class="tweet retweet original-tweet-link" data-id="${t.retweetOf}">
             <div class="flex" style="gap:10px; align-items:center;">
               <img class="avatar" src="${escapeHTML(rtAvatar)}" onerror="this.src='image/default-avatar.jpg'" width="30">
@@ -766,8 +745,8 @@ export async function renderTweet(t, tweetId, user, action = "prepend", containe
             </div>
           </div>
   `;
-      } else if (hasVideo) {
-        retweetHTML = `
+} else if (hasVideo) {
+  retweetHTML = `
     <div class="tweet retweet original-tweet-link" data-id="${t.retweetOf}">
       <div class="flex" style="gap:10px; align-items:center;">
         <img class="avatar" src="${escapeHTML(rtAvatar)}" onerror="this.src='image/default-avatar.jpg'" width="30">
@@ -781,7 +760,7 @@ export async function renderTweet(t, tweetId, user, action = "prepend", containe
       </div>
     </div>
   `;
-      } else {
+} else {
         retweetHTML = `
           <div class="tweet retweet original-tweet-link" data-id="${t.retweetOf}">
             <div class="flex" style="gap:10px; align-items:center;">
@@ -905,26 +884,33 @@ document.body.addEventListener("click", async (e) => {
   if (!tweetSnap.exists()) return;
   const data = tweetSnap.data();
 
+  // 1️⃣ Delete subcollections first
   await deleteSubcollectionDocs(tweetId, "comments");
   await deleteSubcollectionDocs(tweetId, "likes");
   await deleteSubcollectionDocs(tweetId, "views");
 
+  // 2️⃣ Delete tags
   for (const tag of data.tags || []) {
     await deleteDoc(doc(db, "tags", tag, "tweets", tweetId));
   }
 
+  // 3️⃣ Delete mentions
   for (const uid of data.mentions || []) {
     await deleteDoc(doc(db, "users", uid, "mentioned", tweetId));
   }
 
+  // 4️⃣ Delete tweet document itself
   await deleteDoc(tweetRef);
 
+  // 5️⃣ Delete from user posts
   await deleteDoc(doc(db, "users", userId, "posts", tweetId));
 
+  // 6️⃣ Decrement post counter
   await updateDoc(doc(db, "users", userId), {
     posts: increment(-1)
   });
 
+  // 7️⃣ Remove from DOM
   const el = document.getElementById("tweet-" + tweetId);
   if (el) el.remove();
 });
@@ -950,18 +936,25 @@ const observer = new IntersectionObserver(async (entries, obs) => {
   threshold: 1.0
 });
 
-async function loadTweets(initial = false) {
+let removedCount = 0;
+let topRemovedCount = 0;
+let newestSnapshotMostLiked = null;
+let newestSnapshotNewest = null;
+let oldestSnapshotMostLiked = null;
+let oldestSnapshotNewest = null;
+const MAX_TWEETS = 55;
+const REMOVE_BATCH = 30;
+
+async function loadTweets(initial = false, direction = "down", count = 15) {
   if (!isOnline) {
     showConnectionLost();
     return;
   }
-
   if (loadingMore || noMoreTweets) return;
   loadingMore = true;
 
   const loadingScreen = document.getElementById("loadingScreen");
   const logEl = document.getElementById("log");
-
   if (initial && loadingScreen) {
     loadingScreen.style.display = "flex";
     loadingScreen.style.opacity = "1";
@@ -971,61 +964,107 @@ async function loadTweets(initial = false) {
 
   const tweetsRef = collection(db, "tweets");
 
-  const mostLikedQuery = query(tweetsRef, orderBy("likeCount", "desc"), limit(15));
-  const newestQuery = query(tweetsRef, orderBy("createdAt", "desc"), limit(15));
+  let mostLikedQuery, newestQuery;
+  if (direction === "down") {
+    mostLikedQuery = newestSnapshotMostLiked
+      ? query(tweetsRef, orderBy("likeCount", "desc"), startAfter(newestSnapshotMostLiked), limit(count))
+      : query(tweetsRef, orderBy("likeCount", "desc"), limit(count));
+
+    newestQuery = newestSnapshotNewest
+      ? query(tweetsRef, orderBy("createdAt", "desc"), startAfter(newestSnapshotNewest), limit(count))
+      : query(tweetsRef, orderBy("createdAt", "desc"), limit(count));
+  } else {
+    mostLikedQuery = oldestSnapshotMostLiked
+      ? query(tweetsRef, orderBy("likeCount", "asc"), startAfter(oldestSnapshotMostLiked), limit(count))
+      : query(tweetsRef, orderBy("likeCount", "asc"), limit(count));
+
+    newestQuery = oldestSnapshotNewest
+      ? query(tweetsRef, orderBy("createdAt", "asc"), startAfter(oldestSnapshotNewest), limit(count))
+      : query(tweetsRef, orderBy("createdAt", "asc"), limit(count));
+  }
 
   const [mostLikedSnap, newestSnap] = await Promise.all([
     getDocs(mostLikedQuery),
     getDocs(newestQuery),
   ]);
 
-  const usedIds = new Set();
-  const mostLikedTweets = mostLikedSnap.docs;
-  const newestTweets = newestSnap.docs;
-
-  const mixed = [];
-
-  const maxLength = Math.max(mostLikedTweets.length, newestTweets.length);
-  for (let i = 0; i < maxLength; i++) {
-    if (mostLikedTweets[i] && !usedIds.has(mostLikedTweets[i].id)) {
-      mixed.push(mostLikedTweets[i]);
-      usedIds.add(mostLikedTweets[i].id);
-    }
-    if (newestTweets[i] && !usedIds.has(newestTweets[i].id)) {
-      mixed.push(newestTweets[i]);
-      usedIds.add(newestTweets[i].id);
-    }
-  }
-
-  if (mixed.length === 0) {
+  if (mostLikedSnap.empty && newestSnap.empty) {
     noMoreTweets = true;
     loadingMore = false;
     if (initial && loadingScreen) loadingScreen.style.display = "none";
     return;
   }
 
-  lastTweet = newestTweets[newestTweets.length - 1];
+  const usedIds = new Set();
+  const mixed = [];
+  const mostLikedDocs = mostLikedSnap.docs;
+  const newestDocs = newestSnap.docs;
+  const maxLength = Math.max(mostLikedDocs.length, newestDocs.length);
 
-  let renderedCount = 0;
+  for (let i = 0; i < maxLength; i++) {
+    if (mostLikedDocs[i] && !usedIds.has(mostLikedDocs[i].id)) {
+      mixed.push(mostLikedDocs[i]);
+      usedIds.add(mostLikedDocs[i].id);
+    }
+    if (newestDocs[i] && !usedIds.has(newestDocs[i].id)) {
+      mixed.push(newestDocs[i]);
+      usedIds.add(newestDocs[i].id);
+    }
+  }
 
-  for (const docSnap of mixed) {
-    const t = docSnap.data();
-    const tweetId = docSnap.id;
+  if (direction === "down") {
+    mixed.forEach((docSnap) => {
+      renderTweet(docSnap.data(), docSnap.id, auth.currentUser, "append");
+    });
+    newestSnapshotMostLiked = mostLikedDocs[mostLikedDocs.length - 1] || newestSnapshotMostLiked;
+    newestSnapshotNewest = newestDocs[newestDocs.length - 1] || newestSnapshotNewest;
+  } else {
+    mixed.reverse().forEach((docSnap) => {
+      renderTweet(docSnap.data(), docSnap.id, auth.currentUser, "prepend");
+    });
+    oldestSnapshotMostLiked = mostLikedDocs[mostLikedDocs.length - 1] || oldestSnapshotMostLiked;
+    oldestSnapshotNewest = newestDocs[newestDocs.length - 1] || oldestSnapshotNewest;
+  }
 
-    await renderTweet(t, tweetId, auth.currentUser);
-    renderedCount++;
+  if (initial && loadingScreen) {
+    loadingScreen.style.opacity = "0";
+    document.body.classList.remove("no-scroll");
+    setTimeout(() => {
+      loadingScreen.style.display = "none";
+    }, 300);
+  }
 
-    if (initial && renderedCount === 3 && loadingScreen) {
-      loadingScreen.style.opacity = "0";
-      document.body.classList.remove("no-scroll");
-      setTimeout(() => {
-        loadingScreen.style.display = "none";
-      }, 300);
+  const tweets = document.querySelectorAll(".tweet");
+  if (tweets.length > MAX_TWEETS) {
+    for (let i = 0; i < REMOVE_BATCH; i++) {
+      const firstTweet = document.querySelector(".tweet");
+      if (firstTweet) {
+        firstTweet.remove();
+        topRemovedCount++;
+      }
     }
   }
 
   loadingMore = false;
 }
+
+window.addEventListener("scroll", async () => {
+  const tweets = document.querySelectorAll(".tweet");
+  if (loadingMore) return;
+
+  const lastTweet = tweets[tweets.length - 1];
+  if (lastTweet && lastTweet.getBoundingClientRect().top < window.innerHeight) {
+    await loadTweets(false, "down", 15);
+  }
+
+  const firstTweet = tweets[0];
+  if (firstTweet && window.scrollY === 0 && topRemovedCount > 0) {
+    await loadTweets(false, "up", REMOVE_BATCH);
+    topRemovedCount -= REMOVE_BATCH;
+  }
+});
+
+loadTweets(true, "down", 15);
 
 document.body.addEventListener("click", async (e) => {
   const commentBtn = e.target.closest(".comment-btn");
@@ -1093,53 +1132,53 @@ document.body.addEventListener("click", async (e) => {
 
     applyReadMoreLogic(commentTweet);
 
-    document.getElementById("sendComment").onclick = async () => {
-      const sendBtn = document.getElementById("sendComment");
-      sendBtn.disabled = true;
-      sendBtn.classList.add('disabled');
+document.getElementById("sendComment").onclick = async () => {
+  const sendBtn = document.getElementById("sendComment");
+  sendBtn.disabled = true; // Disable button right away
+  sendBtn.classList.add('disabled');
 
-      try {
-        const commentText = document.getElementById("commentInput").value.trim();
-        const file = document.querySelector(".comment-media-input").files[0];
-        const user = auth.currentUser;
-        let media = "",
-          mediaType = "";
+  try {
+    const commentText = document.getElementById("commentInput").value.trim();
+    const file = document.querySelector(".comment-media-input").files[0];
+    const user = auth.currentUser;
+    let media = "",
+        mediaType = "";
 
-        if (file) {
-          mediaType = "image";
-          media = await resizeImage(file);
-          if (media.length > 1048487) {
-            alert("Image is too large.");
-            sendBtn.disabled = false;
-            sendBtn.classList.remove('disabled');
-            return;
-          }
-        }
-
-        if (commentText || media) {
-          await addDoc(collection(db, "tweets", tweetId, "comments"), {
-            text: commentText,
-            media,
-            mediaType,
-            uid: user.uid,
-            likeCount: 0,
-            createdAt: new Date()
-          });
-
-          document.getElementById("commentInput").value = "";
-          document.querySelector(".comment-media-input").value = "";
-          document.getElementById("commentPreview").innerHTML = "";
-          loadComments(tweetId);
-
-          await sendCommentNotification(tweetId, commentText);
-        }
-      } catch (err) {
-        console.error("Error sending comment:", err);
-      } finally {
-        sendBtn.disabled = false;
+    if (file) {
+      mediaType = "image";
+      media = await resizeImage(file);
+      if (media.length > 1048487) {
+        alert("Image is too large.");
+        sendBtn.disabled = false; // Re-enable if there's an error
         sendBtn.classList.remove('disabled');
+        return;
       }
-    };
+    }
+
+    if (commentText || media) {
+      await addDoc(collection(db, "tweets", tweetId, "comments"), {
+        text: commentText,
+        media,
+        mediaType,
+        uid: user.uid,
+        likeCount: 0,
+        createdAt: new Date()
+      });
+
+      document.getElementById("commentInput").value = "";
+      document.querySelector(".comment-media-input").value = "";
+      document.getElementById("commentPreview").innerHTML = "";
+      loadComments(tweetId);
+
+      await sendCommentNotification(tweetId, commentText);
+    }
+  } catch (err) {
+    console.error("Error sending comment:", err);
+  } finally {
+    sendBtn.disabled = false; // Always re-enable after sending
+    sendBtn.classList.remove('disabled');
+  }
+};
     loadComments(tweetId);
   }
 
@@ -1450,75 +1489,75 @@ document.body.addEventListener("click", async (e) => {
     }
   }
 
-  const sendReplyBtn = e.target.closest(".send-reply-btn");
-  if (sendReplyBtn) {
-    sendReplyBtn.disabled = true;
-    sendReplyBtn.classList.add('disabled');
+const sendReplyBtn = e.target.closest(".send-reply-btn");
+if (sendReplyBtn) {
+  sendReplyBtn.disabled = true; // disable immediately
+  sendReplyBtn.classList.add('disabled');
 
-    try {
-      const commentId = e.target.dataset.id;
-      const box = e.target.closest(".reply-box");
-      const textarea = box.querySelector(".reply-text");
-      const file = box.querySelector(".comment-media-input")?.files[0];
-      const text = textarea.value.trim();
-      const tweetId = box.closest(".comment-item").querySelector(".comment-like-btn")?.dataset.tweet;
+  try {
+    const commentId = e.target.dataset.id;
+    const box = e.target.closest(".reply-box");
+    const textarea = box.querySelector(".reply-text");
+    const file = box.querySelector(".comment-media-input")?.files[0];
+    const text = textarea.value.trim();
+    const tweetId = box.closest(".comment-item").querySelector(".comment-like-btn")?.dataset.tweet;
 
-      const uid = auth.currentUser.uid;
-      const user = auth.currentUser;
-      const userDoc = await getDoc(doc(db, "users", uid));
-      const profile = userDoc.exists() ? userDoc.data() : {};
+    const uid = auth.currentUser.uid;
+    const user = auth.currentUser;
+    const userDoc = await getDoc(doc(db, "users", uid));
+    const profile = userDoc.exists() ? userDoc.data() : {};
 
-      const originalCommenterId = box.closest(".comment-item")?.dataset.uid;
-      const originalCommentText = box.closest(".comment-item")?.dataset.text || "";
+    const originalCommenterId = box.closest(".comment-item")?.dataset.uid;
+    const originalCommentText = box.closest(".comment-item")?.dataset.text || "";
 
-      let media = "",
+    let media = "",
         mediaType = "";
 
-      if (file) {
-        mediaType = "image";
-        media = await resizeImage(file);
-        if (media.length > 1048487) {
-          alert("Image is too large.");
-          sendReplyBtn.disabled = false;
-          sendReplyBtn.classList.remove('disabled');
-          return;
-        }
-      }
-
-      if (!text && !media) {
-        sendReplyBtn.disabled = false;
+    if (file) {
+      mediaType = "image";
+      media = await resizeImage(file);
+      if (media.length > 1048487) {
+        alert("Image is too large.");
+        sendReplyBtn.disabled = false; // re-enable on error
         sendReplyBtn.classList.remove('disabled');
         return;
       }
-
-      await addDoc(collection(db, "tweets", tweetId, "comments", commentId, "replies"), {
-        text,
-        media,
-        mediaType,
-        uid: user.uid,
-        createdAt: new Date()
-      });
-
-      await sendReplyNotification(tweetId, commentId, text, originalCommenterId, originalCommentText);
-
-      textarea.value = "";
-      if (box.querySelector(".comment-media-input")) {
-        box.querySelector(".comment-media-input").value = "";
-      }
-      const preview = document.getElementById(`replyPreview-${commentId}`);
-      if (preview) preview.innerHTML = "";
-
-      loadedReplies[commentId] = 0;
-      document.getElementById("replies-" + commentId).innerHTML = "";
-      await loadReplies(tweetId, commentId);
-
-    } catch (err) {
-      console.error("Error sending reply:", err);
-    } finally {
-      sendReplyBtn.disabled = false;
-      sendReplyBtn.classList.remove('disabled');
     }
+
+    if (!text && !media) {
+      sendReplyBtn.disabled = false; // re-enable if nothing to send
+      sendReplyBtn.classList.remove('disabled');
+      return;
+    }
+
+    await addDoc(collection(db, "tweets", tweetId, "comments", commentId, "replies"), {
+      text,
+      media,
+      mediaType,
+      uid: user.uid,
+      createdAt: new Date()
+    });
+
+    await sendReplyNotification(tweetId, commentId, text, originalCommenterId, originalCommentText);
+
+    textarea.value = "";
+    if (box.querySelector(".comment-media-input")) {
+      box.querySelector(".comment-media-input").value = "";
+    }
+    const preview = document.getElementById(`replyPreview-${commentId}`);
+    if (preview) preview.innerHTML = "";
+
+    loadedReplies[commentId] = 0;
+    document.getElementById("replies-" + commentId).innerHTML = "";
+    await loadReplies(tweetId, commentId);
+
+  } catch (err) {
+    console.error("Error sending reply:", err);
+  } finally {
+    sendReplyBtn.disabled = false; // always re-enable
+    sendReplyBtn.classList.remove('disabled');
   }
+}
 
   const cancelReplyBtn = e.target.closest(".cancel-reply-btn");
   if (cancelReplyBtn) {
