@@ -1,5 +1,7 @@
 # wintre
 
+## micro-blogging social media
+
 this project is powered by firebase & supabase.
 
 ## firestore rules
