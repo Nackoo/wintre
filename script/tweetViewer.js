@@ -20,7 +20,7 @@ async function loadTweetRecursive(tweetId, container) {
   const tweetDiv = document.createElement("div");
   tweetDiv.className = "tweet-box";
   tweetDiv.dataset.id = tweetId;
-  tweetDiv.innerHTML = `<p style="color:gray">Rendering tweet...</p>`;
+  tweetDiv.innerHTML = ``;
   container.appendChild(tweetDiv);
 
   await renderTweet(tweetData, tweetId, auth.currentUser, "replace", tweetDiv);
@@ -63,7 +63,7 @@ document.body.addEventListener("click", async (e) => {
   const tweetSnap = await getDoc(tweetRef);
 
   if (!tweetSnap.exists()) {
-    box.innerHTML = "<p>Tweet not found.</p>";
+    box.innerHTML = `<div style="display:flex;justify-content:center;opacity:0.2;"><img style="height:250px;width:250px;" src="image/404.png"></div>`;
     return;
   }
 
