@@ -1,4 +1,4 @@
-import { db, collection, query, where, getDocs, orderBy, limit, auth, getDoc, doc, setDoc, deleteDoc } from "./firebase.js";
+import { db, collection, query, where, getDocs, orderBy, limit, auth, getDoc, doc, setDoc, deleteDoc, startAfter } from "./firebase.js";
 import { renderTweet } from './index.js';
 
 const searchBtn = document.querySelector('.smallbar img[src="image/search.svg"]');
@@ -67,7 +67,7 @@ searchInput.addEventListener("input", () => {
       if (currentSearchTerm.length >= 3) {
         searchTweets(currentSearchTerm);
       } else {
-        tweetsView.innerHTML = `<p style="color:gray;">enter at least 3 characters to search tweets</p>`;
+        tweetsView.innerHTML = `<p style="color:gray;font-size:15px;">enter at least 3 characters to search tweets</p>`;
       }
     } else if (activeTab === "usersView") {
       usersView.innerHTML = "";
@@ -105,7 +105,7 @@ async function searchTweets(term) {
   });
 
   if (tweetSearchResults.length === 0) {
-    tweetsView.innerHTML = `<p style="color:gray;">no tweets found</p>`;
+    tweetsView.innerHTML = `<div style="display:flex;justify-content:center;opacity:0.2;"><img style="height:250px;width:250px;" src="image/404.png"></div>`;
     tweetSearchNoMore = true;
     return;
   }
@@ -115,7 +115,7 @@ async function searchTweets(term) {
 }
 
 async function renderMoreSearchedTweets() {
-  const next = tweetSearchResults.slice(renderedTweetCount, renderedTweetCount + 30);
+  const next = tweetSearchResults.slice(renderedTweetCount, renderedTweetCount + 10);
 
   for (const docSnap of next) {
     const t = docSnap.data();
@@ -130,78 +130,69 @@ async function renderMoreSearchedTweets() {
   }
 }
 
-tweetsView.addEventListener("scroll", () => {
-  if (tweetSearchNoMore || tweetSearchLoading) return;
-  const tweets = tweetsView.querySelectorAll(".tweet");
-  if (tweets.length < 25) return;
-
-  const triggerEl = tweets[24];
-  const rect = triggerEl.getBoundingClientRect();
-  const inView = rect.top < window.innerHeight && rect.bottom >= 0;
-
-  if (inView) {
-    renderMoreSearchedTweets();
-  }
-});
-
-usersView.addEventListener("scroll", () => {
-  if (usersView.scrollTop + usersView.clientHeight >= usersView.scrollHeight - 20) {
-    fetchUsers(false);
-  }
-});
-
 let lastDoc = null;
 
 let loadedCount = 0;
-const PAGE_SIZE = 30;
+const PAGE_SIZE = 3;
 const list = document.getElementById("userList");
 const loadMore = document.getElementById("userLoadMore");
 
-async function loadTweets(targetUid = auth.currentUser.uid) {
-  const userDoc = await getDoc(doc(db, "users", targetUid));
+let userLastVisibleDoc = null;
+let userLoadedCount = 0;
+const USER_PAGE_SIZE = 3;
+
+async function loadTweets(uid) {
+  const userDoc = await getDoc(doc(db, "users", uid));
   if (!userDoc.exists()) return;
 
-  const user = {
+  const userData = {
     ...userDoc.data(),
-    uid: targetUid
+    uid
   };
 
-  const postsRef = collection(db, "users", targetUid, "posts");
-  const allPosts = await getDocs(postsRef);
-  const tweets = [];
+  const tweetsRef = collection(db, "tweets");
+  let q;
 
-  for (const docSnap of allPosts.docs) {
-    const tweetDoc = await getDoc(doc(db, "tweets", docSnap.id));
-    if (tweetDoc.exists()) {
-      tweets.push({
-        id: tweetDoc.id,
-        data: tweetDoc.data()
-      });
-    }
+  if (!userLastVisibleDoc) {
+    q = query(
+      tweetsRef,
+      where("uid", "==", uid),
+      orderBy("createdAt", "desc"),
+      limit(USER_PAGE_SIZE)
+    );
+  } else {
+    q = query(
+      tweetsRef,
+      where("uid", "==", uid),
+      orderBy("createdAt", "desc"),
+      startAfter(userLastVisibleDoc),
+      limit(USER_PAGE_SIZE)
+    );
   }
 
-  if (tweets.length === 0) {
-    list.innerHTML = `<p id="start1" style="color:grey;text-align:center">this user has no wint</p>`;
+  const snap = await getDocs(q);
+
+  if (snap.empty && userLoadedCount === 0) {
+    list.innerHTML = `<div id="start" style="display:flex;justify-content:center;opacity:0.2;"><img style="height:250px;width:250px;" src="image/404.png"></div>`;
     loadMore.style.display = "none";
     return;
   } else {
-    const startEl = document.getElementById('start1');
-    if (startEl) startEl.style.display = 'none';
+    const startEl = document.getElementById("start");
+    if (startEl) startEl.style.display = "none";
   }
 
-  tweets.sort((a, b) => {
-    const aTime = a.data.createdAt?.toMillis ? a.data.createdAt.toMillis() : 0;
-    const bTime = b.data.createdAt?.toMillis ? b.data.createdAt.toMillis() : 0;
-    return bTime - aTime;
-  });
-
-  const slice = tweets.slice(loadedCount, loadedCount + PAGE_SIZE);
-  for (const tweet of slice) {
-    await renderTweet(tweet.data, tweet.id, user, "append", list);
+  for (const docSnap of snap.docs) {
+    await renderTweet(docSnap.data(), docSnap.id, userData, "append", list);
   }
 
-  loadedCount += slice.length;
-  loadMore.style.display = loadedCount >= tweets.length ? "none" : "block";
+  userLoadedCount += snap.docs.length;
+
+  if (snap.docs.length < USER_PAGE_SIZE) {
+    loadMore.style.display = "none";
+  } else {
+    loadMore.style.display = "block";
+    userLastVisibleDoc = snap.docs[snap.docs.length - 1];
+  }
 }
 
 loadMore.addEventListener("click", () => {
@@ -209,7 +200,12 @@ loadMore.addEventListener("click", () => {
   loadTweets(uid);
 });
 
-document.getElementById("youLoadMore").addEventListener("click", () => loadYourTweets(false));
+const mloadMore = document.getElementById("mLoadMore"); 
+
+mloadMore.addEventListener("click", () => {
+  const uid = document.getElementById("user-name").dataset.uid;
+  loadUserMentionedTweets(uid);
+});
 
 async function fetchUsers(reset = false) {
   if (isFetching) return;
@@ -217,8 +213,8 @@ async function fetchUsers(reset = false) {
 
   const selfUID = auth.currentUser?.uid;
   const q = lastUserDoc ?
-    query(collection(db, "users"), orderBy("displayName"), startAfter(lastUserDoc), limit(30)) :
-    query(collection(db, "users"), orderBy("displayName"), limit(30));
+    query(collection(db, "users"), orderBy("displayName"), startAfter(lastUserDoc), limit(10)) :
+    query(collection(db, "users"), orderBy("displayName"), limit(10));
 
   const snap = await getDocs(q);
   lastUserDoc = snap.docs[snap.docs.length - 1];
@@ -241,7 +237,7 @@ async function fetchUsers(reset = false) {
     <img src="${data.photoURL}" onerror="this.src='image/default-avatar.jpg'" style="width:40px;height:40px;border-radius:50%;object-fit:cover;align-self:flex-start;">
     <div style="flex:1">
       <strong style="cursor:pointer;">${escapeHTML(data.displayName || "Unnamed")}</strong>
-      <p style="margin:5px 0;color:grey">${escapeHTML(data.description || "")}</p>
+      <p style="margin:5px 0;color:grey;font-size:15px;">${escapeHTML(data.description || "")}</p>
     </div>
     <button class="mini-follow-btn" style="padding:4px 10px;border-radius:50px;background:white;height:30px;cursor:pointer;border:1px solid var(--border);">...</button>
   `;
@@ -290,7 +286,7 @@ async function fetchUsers(reset = false) {
   }
 
   if (reset && filtered.length === 0) {
-    usersView.innerHTML = `<p style="color:grey;">no users found</p>`;
+    usersView.innerHTML = `<div style="display:flex;justify-content:center;opacity:0.2;"><img style="height:250px;width:250px;" src="image/404.png"></div>`;
   }
 
   isFetching = false;
@@ -320,17 +316,17 @@ export async function fetchTags(term) {
     const topTags = tagCounts
       .filter(tag => tag.count > 0)
       .sort((a, b) => b.count - a.count)
-      .slice(0, 30);
+      .slice(0, 10);
 
     if (topTags.length === 0) {
-      tagsView.innerHTML = `<p style="color:gray;">no tags available</p>`;
+      tagsView.innerHTML = `<div style="display:flex;justify-content:center;opacity:0.2;"><img style="height:250px;width:250px;" src="image/404.png"></div>`;
       return;
     }
 
     for (const tag of topTags) {
       const item = document.createElement("div");
       item.className = "tag-search-item";
-      item.innerHTML = `<div style="display:flex;align-items:center;"><strong style="color:var(--color)">#${tag.id}</strong> <p style="color:var(--color);margin-left:auto">${tag.count} wints</p></div>`;
+      item.innerHTML = `<div style="display:flex;align-items:center;"><strong style="color:#00ba7c;">#${tag.id}</strong> <p style="color:var(--color);margin-left:auto">${tag.count} wints</p></div>`;
       item.style.cssText = "border-bottom:var(--border);cursor:pointer;";
       item.onclick = () => {
         openTag(tag.id);
@@ -350,9 +346,11 @@ export async function fetchTags(term) {
   snap = await getDocs(q);
 
   if (snap.empty) {
-    tagsView.innerHTML = `<p style="color:gray;">no tags found</p>`;
+    tagsView.innerHTML = `<div style="display:flex;justify-content:center;opacity:0.2;"><img style="height:250px;width:250px;" src="image/404.png"></div>`;
     return;
   }
+
+  const searchTags = snap.docs.slice(0, 10);
 
   for (const tagDoc of snap.docs) {
     const tagId = tagDoc.id;
@@ -381,10 +379,19 @@ function escapeHTML(str) {
 }
 
 async function openUserSubProfile(uid) {
+
+  list.innerHTML = "";
+  usermentionedList.innerHTML = "";
+
+  userLoadedCount = 0;
+  userLastVisibleDoc = null;
+  mentionedLoadedCount = 0;
+  mentionedLastVisibleDoc = null;
+
   const docSnap = await getDoc(doc(db, "users", uid));
   if (!docSnap.exists()) return;
 
-  document.getElementById("user-name").dataset.uid
+  document.getElementById("user-name").dataset.uid = uid;
 
   const d = docSnap.data();
   document.getElementById("who").textContent = d.displayName || "Unnamed";
@@ -474,26 +481,41 @@ window.openTag = async function(tagId) {
 
   tweetList.innerHTML = "";
   let renderedCount = 0;
+  const allTweetIds = tagTweetDocs.docs.map(doc => doc.id);
 
-  for (const docSnap of tagTweetDocs.docs) {
-    const tweetId = docSnap.id;
-    const tweetDoc = await getDoc(doc(db, "tweets", tweetId));
-
-    if (tweetDoc.exists()) {
-      const tweetData = tweetDoc.data();
-      await renderTweet(tweetData, tweetId, auth.currentUser, "append", tweetList);
-      renderedCount++;
+  async function renderBatch() {
+    const nextBatch = allTweetIds.slice(renderedCount, renderedCount + 10);
+    for (const tweetId of nextBatch) {
+      const tweetDoc = await getDoc(doc(db, "tweets", tweetId));
+      if (tweetDoc.exists()) {
+        const tweetData = tweetDoc.data();
+        await renderTweet(tweetData, tweetId, auth.currentUser, "append", tweetList);
+      }
     }
+    renderedCount += nextBatch.length;
+
+    loadMoreLink.style.display = renderedCount < allTweetIds.length ? "block" : "none";
   }
 
+  const loadMoreLink = document.createElement("a");
+  loadMoreLink.textContent = "Load More";
+  loadMoreLink.className = "read-more link";
+  loadMoreLink.href = "javascript:void(0)";
+  loadMoreLink.style.display = "none";
+  loadMoreLink.addEventListener("click", renderBatch);
+
+  tweetList.after(loadMoreLink);
+
+  await renderBatch();
+
   if (renderedCount === 0) {
-    tweetList.innerHTML = `<p style="color:gray;">no tweets found for #${tagId}</p>`;
+    tweetList.innerHTML = `<div style="display:flex;justify-content:center;opacity:0.2;"><img style="height:250px;width:250px;" src="image/404.png"></div>`;
   }
 };
 
 let followList = [];
 let followLastDoc = null;
-const FOLLOW_PAGE_SIZE = 30;
+const FOLLOW_PAGE_SIZE = 10;
 
 const followOverlay = document.createElement("div");
 followOverlay.id = "followOverlay";
@@ -565,9 +587,9 @@ const followListContainer = document.getElementById("followList");
 
 followListContainer.addEventListener("scroll", () => {
   const items = followListContainer.querySelectorAll(".user-search-item");
-  if (items.length < 25) return;
+  if (items.length < 10) return;
 
-  const triggerEl = items[24];
+  const triggerEl = items[10];
   const rect = triggerEl.getBoundingClientRect();
   const inView = rect.top < window.innerHeight && rect.bottom >= 0;
 
@@ -602,6 +624,77 @@ document.getElementById("ing").onclick = () => {
   openFollowOverlay("following", window.lastViewedUserId, false);
 };
 
+let mentionedLastVisibleDoc = null;
+let mentionedLoadedCount = 0;
+const usermentionedList = document.getElementById("usermentionedList");
+const MENTIONED_PAGE_SIZE = 3;
+
+document.querySelectorAll(".tab3").forEach(tab => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".tab3").forEach(t => t.classList.remove("active"));
+    tab.classList.add("active");
+
+    document.getElementById("userList").style.display = "none";
+    document.getElementById("usermentionedList").style.display = "none";
+
+    const targetId = tab.dataset.target;
+    document.getElementById(targetId).style.display = "block";
+
+    const uid = document.getElementById("user-name").dataset.uid;
+
+    if (targetId === "userList") {
+      loadTweets(uid);
+    } else if (targetId === "usermentionedList") {
+      loadUserMentionedTweets(uid);
+    }
+  });
+});
+
+async function loadUserMentionedTweets(uid) {
+  const mentionedRef = collection(db, "users", uid, "mentioned");
+  let q;
+
+  if (!mentionedLastVisibleDoc) {
+    q = query(mentionedRef, orderBy("mentionedAt", "desc"), limit(MENTIONED_PAGE_SIZE));
+  } else {
+    q = query(mentionedRef, orderBy("mentionedAt", "desc"), startAfter(mentionedLastVisibleDoc), limit(MENTIONED_PAGE_SIZE));
+  }
+
+  const snap = await getDocs(q);
+mloadMore.style.display = "none"; 
+
+if (snap.empty && mentionedLoadedCount === 0) {
+  usermentionedList.innerHTML = `<div style="display:flex;justify-content:center;opacity:0.2;"><img style="height:250px;width:250px;" src="image/404.png"></div>`;
+  return;
+}
+
+if (snap.docs.length >= MENTIONED_PAGE_SIZE) {
+  mloadMore.style.display = "block";
+  mentionedLastVisibleDoc = snap.docs[snap.docs.length - 1];
+}
+
+  for (const mentionDoc of snap.docs) {
+    const tweetId = mentionDoc.id;
+    const tweetDoc = await getDoc(doc(db, "tweets", tweetId));
+    if (!tweetDoc.exists()) continue;
+
+    const tweetData = tweetDoc.data();
+    const userDoc = await getDoc(doc(db, "users", uid));
+    const userData = {
+      ...userDoc.data(),
+      uid
+    };
+
+    await renderTweet(tweetData, tweetId, userData, "append", usermentionedList);
+  }
+
+  mentionedLoadedCount += snap.docs.length;
+
+  if (snap.docs.length >= MENTIONED_PAGE_SIZE) {
+    mentionedLastVisibleDoc = snap.docs[snap.docs.length - 1];
+  }
+}
+
 let userSearchTimeout;
 
 document.getElementById("userInput").addEventListener("input", () => {
@@ -611,25 +704,28 @@ document.getElementById("userInput").addEventListener("input", () => {
     const keyword = document.getElementById("userInput").value.trim().toLowerCase();
     const targetUid = document.getElementById("user-name").dataset.uid;
 
-    const listContainer = document.getElementById("userList");
-    listContainer.innerHTML = `<div class="flex" style="justify-content:center;"><div class="loader"></div></div>`;
+    const activeTab = document.querySelector(".tab3.active").dataset.target;
+    const listContainer = document.getElementById(activeTab);
+    listContainer.innerHTML = ``;
 
-    const postsSnap = await getDocs(collection(db, "users", targetUid, "posts"));
-    const tweetIds = postsSnap.docs.map(doc => doc.id);
+    let tweetIds = [];
+
+    if (activeTab === "userList") {
+      const postsSnap = await getDocs(collection(db, "users", targetUid, "posts"));
+      tweetIds = postsSnap.docs.map(doc => doc.id);
+    } else {
+      const mentionsSnap = await getDocs(collection(db, "users", targetUid, "mentioned"));
+      tweetIds = mentionsSnap.docs.map(doc => doc.id);
+    }
 
     const matched = [];
-
     for (const tweetId of tweetIds) {
       const tweetDoc = await getDoc(doc(db, "tweets", tweetId));
       if (!tweetDoc.exists()) continue;
 
       const tweet = tweetDoc.data();
-      const combinedText = (tweet.text || "").toLowerCase();
-      if (combinedText.includes(keyword)) {
-        matched.push({
-          tweetId,
-          tweet
-        });
+      if ((tweet.text || "").toLowerCase().includes(keyword)) {
+        matched.push({ tweetId, tweet });
       }
     }
 
@@ -642,23 +738,13 @@ document.getElementById("userInput").addEventListener("input", () => {
     listContainer.innerHTML = "";
 
     if (matched.length === 0) {
-      listContainer.innerHTML = `<p style='text-align:center;color:grey;'>No results found</p>`;
+      listContainer.innerHTML = `<div style="display:flex;justify-content:center;opacity:0.2;"><img style="height:250px;width:250px;" src="image/404.png"></div>`;
     } else {
       const userDoc = await getDoc(doc(db, "users", targetUid));
-      const userData = userDoc.data();
-      const user = {
-        ...userData,
-        uid: targetUid
-      };
-
-      for (const {
-          tweetId,
-          tweet
-        }
-        of matched) {
-        await renderTweet(tweet, tweetId, user, "append", listContainer);
+      const userData = { ...userDoc.data(), uid: targetUid };
+      for (const { tweetId, tweet } of matched) {
+        await renderTweet(tweet, tweetId, userData, "append", listContainer);
       }
     }
-
   }, 1000);
 });
