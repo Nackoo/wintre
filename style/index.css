@@ -124,10 +124,10 @@ body {
     position: fixed;
     background: var(--dark);
     top: 0;
-    right: 0;
+    left: 0;
     bottom: 0;
     width: 52px;
-    border-left: var(--border);
+    border-right: var(--border);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -135,7 +135,7 @@ body {
   }
 
   #post {
-    right: 70px !important;
+    left: 70px !important;
     top: 20px !important;
   }
 
@@ -457,7 +457,7 @@ span {
 }
 
 .attachment {
-  max-height: 250px;
+  max-height: 260px;
   width: 100%;
   display: flex;
   justify-content: center;
