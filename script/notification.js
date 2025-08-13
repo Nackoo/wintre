@@ -63,7 +63,7 @@ function createNotificationElement(notification) {
   div.innerHTML = `
     <div class="flex">
       <p>
-        <span class="notif-unread" style="color:#da3e44;${notification.read === false ? '' : 'display:none;'}">(unread)</span>
+        <span class="notif-unread" style="color:#1d9bf0;${notification.read === false ? '' : 'display:none;'}">(unread)</span>
         ${content}
         <span style="color:grey;font-size:13px">
           ${formatTime(notification.createdAt.toDate())}
