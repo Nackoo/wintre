@@ -1667,11 +1667,28 @@ document.body.addEventListener("click", async (e) => {
     await loadReplies(tweetId, commentId);
   }
   const overlay = document.querySelector(".mediaOverlay");
-  const overlayContent = document.getElementById("overlayContent");
-  if (e.target.tagName === "IMG" && (e.target.closest(".attachment") || e.target.closest(".attachment1") || e.target.closest(".rt-attachment") || e.target.closest(".attachment2"))) {
+const overlayContent = document.getElementById("overlayContent");
+
+document.addEventListener("click", (e) => {
+  if (
+    e.target.tagName === "IMG" &&
+    (e.target.closest(".attachment") ||
+     e.target.closest(".attachment1") ||
+     e.target.closest(".rt-attachment") ||
+     e.target.closest(".attachment2"))
+  ) {
     overlay.classList.remove("hidden");
     overlayContent.innerHTML = `<img src="${e.target.src}" />`;
   }
+});
+
+// Close overlay if clicked outside the image
+overlay.addEventListener("click", (e) => {
+  if (e.target === overlay) {
+    overlay.classList.add("hidden");
+    overlayContent.innerHTML = "";
+  }
+});
 
   if (e.target.tagName === "VIDEO" || (e.target.tagName === "SOURCE" && e.target.closest("video"))) {
     const video = e.target.closest("video");
