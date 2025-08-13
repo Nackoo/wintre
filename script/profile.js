@@ -1,5 +1,5 @@
-import { db, auth, doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, deleteDoc, orderBy, limit, signOut } from "./firebase.js";
-import { renderTweet } from '/script/index.js';
+import { db, auth, doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, deleteDoc, orderBy, limit, signOut, startAfter } from "./firebase.js";
+import { renderTweet } from './index.js';
 
 const bannerInput = document.getElementById("banner-input");
 const bannerPreview = document.getElementById("banner-preview");
@@ -102,66 +102,6 @@ function escapeHTML(text) {
   );
 }
 
-let youLastVisibleDoc = null;
-let youLoadedCount = 0;
-const YOU_PAGE_SIZE = 30;
-const youList = document.getElementById("youList");
-const youLoadMore = document.getElementById("youLoadMore");
-
-async function loadYourTweets() {
-  const user = auth.currentUser;
-  if (!user) return;
-
-  const tweetsRef = collection(db, "tweets");
-  let q;
-
-  if (!youLastVisibleDoc) {
-
-    q = query(
-      tweetsRef,
-      where("uid", "==", user.uid),
-      orderBy("createdAt", "desc"),
-      limit(YOU_PAGE_SIZE)
-    );
-  } else {
-
-    q = query(
-      tweetsRef,
-      where("uid", "==", user.uid),
-      orderBy("createdAt", "desc"),
-      startAfter(youLastVisibleDoc),
-      limit(YOU_PAGE_SIZE)
-    );
-  }
-
-  const querySnapshot = await getDocs(q);
-
-  if (querySnapshot.empty && youLoadedCount === 0) {
-    youList.innerHTML = `<p id="start" style="color:grey;text-align:center">post to get started</p>`;
-    youLoadMore.style.display = "none";
-    return;
-  } else {
-    const startEl = document.getElementById("start");
-    if (startEl) startEl.style.display = "none";
-  }
-
-  for (const docSnap of querySnapshot.docs) {
-    const tweetData = docSnap.data();
-    await renderTweet(tweetData, docSnap.id, user, "append", youList);
-  }
-
-  youLoadedCount += querySnapshot.docs.length;
-
-  if (querySnapshot.docs.length < YOU_PAGE_SIZE) {
-    youLoadMore.style.display = "none";
-  } else {
-    youLoadMore.style.display = "block";
-    youLastVisibleDoc = querySnapshot.docs[querySnapshot.docs.length - 1];
-  }
-}
-
-youLoadMore.addEventListener("click", loadYourTweets);
-
 document.querySelector('.smallbar img[src="image/settings.svg"]').addEventListener("click", async () => {
   document.getElementById("profileSubOverlay").classList.remove("hidden");
 
@@ -220,66 +160,6 @@ avaInput.addEventListener("change", async (e) => {
     const base64 = await fileToBase64(file);
     avaPreview.style.background = `url('${base64}') no-repeat center / cover`;
     avaPreview.dataset.image = base64;
-  }
-});
-
-document.querySelector('.smallbar img[src="image/user.svg"]').addEventListener("click", async () => {
-  const uid = auth.currentUser?.uid;
-  if (!uid) return;
-
-  document.getElementById("profileOverlay").classList.remove("hidden");
-
-  const docSnap = await getDoc(doc(db, "users", uid));
-  const d = docSnap.data();
-  if (!docSnap.exists()) return;
-
-  const data = docSnap.data();
-
-  const banner = data.banner;
-  const myBanner = document.getElementById("my-banner");
-
-  if (banner) {
-    myBanner.style.backgroundImage = `url('${banner}')`;
-    myBanner.style.backgroundRepeat = 'no-repeat';
-    myBanner.style.backgroundPosition = 'center';
-    myBanner.style.backgroundSize = 'cover';
-    myBanner.style.backgroundColor = 'unset';
-
-  } else {
-    myBanner.style.backgroundColor = "grey";
-  }
-
-  const avatarURL = data.photoURL || auth.currentUser.photoURL;
-  const myPfp = document.getElementById("my-pfp");
-
-  if (avatarURL) {
-    myPfp.style.background = `url('${avatarURL}') no-repeat center / cover`;
-  } else {
-    myPfp.style.backgroundColor = "grey";
-  }
-
-  loadYourTweets();
-
-  const myFollowersSnap = await getDocs(collection(db, "users", uid, "followers"));
-  const myFollowingSnap = await getDocs(collection(db, "users", uid, "following"));
-  const userSnap = await getDoc(doc(db, "users", uid));
-  const userData = userSnap.data();
-  const postCount = userData?.posts || 0;
-
-  document.getElementById("my-posts").textContent = `${postCount}`;
-  document.getElementById("my-followers").textContent = `${myFollowersSnap.size}`;
-  document.getElementById("my-following").textContent = `${myFollowingSnap.size}`;
-
-  const name = data.displayName || auth.currentUser.displayName;
-  document.getElementById("my-name").textContent = name;
-
-  const description = data.description || "wsg homie?";
-  document.getElementById("my-description").textContent = description;
-
-  if (d.createdAt?.toDate) {
-    const date = d.createdAt.toDate();
-    const formatted = `${date.getDate()} ${date.toLocaleString("default", { month: "long" })} ${date.getFullYear()}`;
-    document.getElementById("my-creation").textContent = `joined ${formatted}`;
   }
 });
 
@@ -342,19 +222,229 @@ saveButton.addEventListener("click", async () => {
   await applyProfileUpdatesToAll(uid, newName, newAvatar);
 });
 
+document.querySelector('.smallbar img[src="image/user.svg"]').addEventListener("click", async () => {
+
+  const uid = auth.currentUser?.uid;
+  if (!uid) return;
+
+  document.getElementById("my-name").dataset.uid = uid;
+
+  document.getElementById("profileOverlay").classList.remove("hidden");
+
+  const docSnap = await getDoc(doc(db, "users", uid));
+  const d = docSnap.data();
+  if (!docSnap.exists()) return;
+
+  const data = docSnap.data();
+
+  const banner = data.banner;
+  const myBanner = document.getElementById("my-banner");
+
+  if (banner) {
+    myBanner.style.backgroundImage = `url('${banner}')`;
+    myBanner.style.backgroundRepeat = 'no-repeat';
+    myBanner.style.backgroundPosition = 'center';
+    myBanner.style.backgroundSize = 'cover';
+    myBanner.style.backgroundColor = 'unset';
+
+  } else {
+    myBanner.style.backgroundColor = "grey";
+  }
+
+  const avatarURL = data.photoURL || auth.currentUser.photoURL;
+  const myPfp = document.getElementById("my-pfp");
+
+  if (avatarURL) {
+    myPfp.style.background = `url('${avatarURL}') no-repeat center / cover`;
+  } else {
+    myPfp.style.backgroundColor = "grey";
+  }
+
+  const myFollowersSnap = await getDocs(collection(db, "users", uid, "followers"));
+  const myFollowingSnap = await getDocs(collection(db, "users", uid, "following"));
+  const userSnap = await getDoc(doc(db, "users", uid));
+  const userData = userSnap.data();
+  const postCount = userData?.posts || 0;
+
+  document.getElementById("my-posts").textContent = `${postCount}`;
+  document.getElementById("my-followers").textContent = `${myFollowersSnap.size}`;
+  document.getElementById("my-following").textContent = `${myFollowingSnap.size}`;
+
+  const name = data.displayName || auth.currentUser.displayName;
+  document.getElementById("my-name").textContent = name;
+
+  const description = data.description || "wsg homie?";
+  document.getElementById("my-description").textContent = description;
+
+  if (d.createdAt?.toDate) {
+    const date = d.createdAt.toDate();
+    const formatted = `${date.getDate()} ${date.toLocaleString("default", { month: "long" })} ${date.getFullYear()}`;
+    document.getElementById("my-creation").textContent = `joined ${formatted}`;
+  }
+  loadTweets(uid);
+});
+
+async function loadTweets(uid) {
+  const userDoc = await getDoc(doc(db, "users", uid));
+  if (!userDoc.exists()) return;
+
+  const userData = {
+    ...userDoc.data(),
+    uid
+  };
+
+  const tweetsRef = collection(db, "tweets");
+  let q;
+
+  if (!userLastVisibleDoc) {
+    q = query(
+      tweetsRef,
+      where("uid", "==", uid),
+      orderBy("createdAt", "desc"),
+      limit(USER_PAGE_SIZE)
+    );
+  } else {
+    q = query(
+      tweetsRef,
+      where("uid", "==", uid),
+      orderBy("createdAt", "desc"),
+      startAfter(userLastVisibleDoc),
+      limit(USER_PAGE_SIZE)
+    );
+  }
+
+  const snap = await getDocs(q);
+
+  if (snap.empty && userLoadedCount === 0) {
+    list.innerHTML = `<p id="start1" style="color:grey;text-align:center">this user has no wint</p>`;
+    loadMore.style.display = "none";
+    return;
+  } else {
+    const startEl = document.getElementById("start1");
+    if (startEl) startEl.style.display = "none";
+  }
+
+  for (const docSnap of snap.docs) {
+    await renderTweet(docSnap.data(), docSnap.id, userData, "append", list);
+  }
+
+  userLoadedCount += snap.docs.length;
+
+  if (snap.docs.length < USER_PAGE_SIZE) {
+    loadMore.style.display = "none";
+  } else {
+    loadMore.style.display = "block";
+    userLastVisibleDoc = snap.docs[snap.docs.length - 1];
+  }
+}
+
+const loadMore = document.getElementById("youLoadMore");
+
+loadMore.addEventListener("click", () => {
+  const uid = document.getElementById("my-name").dataset.uid;
+  loadTweets(uid);
+});
+
+const mloadMore = document.getElementById("myouLoadMore"); 
+
+mloadMore.addEventListener("click", () => {
+  const uid = document.getElementById("my-name").dataset.uid;
+  loadUserMentionedTweets(uid);
+});
+
+let userLastVisibleDoc = null;
+let userLoadedCount = 0;
+const USER_PAGE_SIZE = 3;
+const list = document.getElementById("youList");
+let mentionedLastVisibleDoc = null;
+let mentionedLoadedCount = 0;
+const usermentionedList = document.getElementById("mentionedList");
+const MENTIONED_PAGE_SIZE = 3;
+
+document.querySelectorAll(".tab2").forEach(tab => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".tab2").forEach(t => t.classList.remove("active"));
+    tab.classList.add("active");
+
+    document.getElementById("youList").style.display = "none";
+    document.getElementById("mentionedList").style.display = "none";
+
+    const targetId = tab.dataset.target;
+    document.getElementById(targetId).style.display = "block";
+
+    const uid = document.getElementById("my-name").dataset.uid;
+
+if (targetId === "youList") {
+    loadTweets(uid);
+}
+
+    else if (targetId === "mentionedList") {
+        loadUserMentionedTweets(uid);
+    }
+  });
+});
+
+async function loadUserMentionedTweets(uid) {
+  const mentionedRef = collection(db, "users", uid, "mentioned");
+  let q;
+
+  if (!mentionedLastVisibleDoc) {
+    q = query(mentionedRef, orderBy("mentionedAt", "desc"), limit(MENTIONED_PAGE_SIZE));
+  } else {
+    q = query(mentionedRef, orderBy("mentionedAt", "desc"), startAfter(mentionedLastVisibleDoc), limit(MENTIONED_PAGE_SIZE));
+  }
+
+  const snap = await getDocs(q);
+
+  if (snap.empty && mentionedLoadedCount === 0) {
+    usermentionedList.innerHTML = `<div style="display:flex;justify-content:center;opacity:0.2;" id="start1"><img style="height:250px;width:250px;" src="image/404.png"></div>`;
+    mloadMore.style.display = "none";
+    return;
+  } else {
+    const startEl = document.getElementById("start1");
+    if (startEl) startEl.style.display = "none";
+  }
+
+  for (const mentionDoc of snap.docs) {
+    const tweetId = mentionDoc.id;
+    const tweetDoc = await getDoc(doc(db, "tweets", tweetId));
+    if (!tweetDoc.exists()) continue;
+
+    const tweetData = tweetDoc.data();
+    const userDoc = await getDoc(doc(db, "users", uid));
+    const userData = {
+      ...userDoc.data(),
+      uid
+    };
+
+    await renderTweet(tweetData, tweetId, userData, "append", usermentionedList);
+  }
+
+  mentionedLoadedCount += snap.docs.length;
+
+  if (snap.docs.length < MENTIONED_PAGE_SIZE) {
+    mloadMore.style.display = "none";
+  } else {
+    mloadMore.style.display = "block";
+    mentionedLastVisibleDoc = snap.docs[snap.docs.length - 1];
+  }
+
+}
+
 let searchTimeout;
 
 document.getElementById("profileInput").addEventListener("input", async () => {
+  if (!document.getElementById("profileInput").value.trim()) return;
   clearTimeout(searchTimeout);
+
   searchTimeout = setTimeout(async () => {
     const keyword = document.getElementById("profileInput").value.trim().toLowerCase();
     const user = auth.currentUser;
     if (!user) return;
 
     const isYouTab = document.querySelector(".tab2.active").dataset.target === "youList";
-
     const listContainer = document.getElementById(isYouTab ? "youList" : "mentionedList");
-    listContainer.innerHTML = `<div class="flex" style="justify-content:center;"><div class="loader"></div></div>`;
+    listContainer.innerHTML = ``;
 
     let tweetIds = [];
 
@@ -375,23 +465,18 @@ document.getElementById("profileInput").addEventListener("input", async () => {
       const tweet = tweetDoc.data();
       const combinedText = (tweet.text || "").toLowerCase();
       if (combinedText.includes(keyword)) {
-        matched.push({
-          tweetId,
-          tweet
-        });
+        matched.push({ tweetId, tweet });
       }
     }
 
     listContainer.innerHTML = "";
 
     if (matched.length === 0) {
-      listContainer.innerHTML = `<p style='text-align:center;color:grey;'>No results found</p>`;
+      listContainer.innerHTML = `<div style="display:flex;justify-content:center;opacity:0.2;"><img style="height:250px;width:250px;" src="image/404.png"></div>`;
     } else {
-      for (const {
-          tweetId,
-          tweet
-        }
-        of matched) {
+
+      const limitedMatches = matched.slice(0, 10);
+      for (const { tweetId, tweet } of limitedMatches) {
         await renderTweet(tweet, tweetId, user, "append", listContainer);
       }
     }
