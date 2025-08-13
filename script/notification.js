@@ -1,9 +1,10 @@
-import { auth, db, doc, getDoc, collection, query, orderBy, onSnapshot,serverTimestamp, setDoc, limit, getDocs, where, updateDoc, writeBatch, deleteDoc } from "./firebase.js";
+import { auth, db, doc, getDoc, collection, query, orderBy, onSnapshot,serverTimestamp, setDoc, limit, getDocs, where, updateDoc, writeBatch, deleteDoc, startAfter } from "./firebase.js";
 import { renderTweet } from "./index.js";
 
 let notificationLastDoc = null;
 let notificationLoading = false;
 const NOTIFICATION_PAGE_SIZE = 30;
+let notificationsEnabled = true; 
 
 const notificationsContainer = document.getElementById("notifications");
 
@@ -128,34 +129,56 @@ export async function handleNotificationClick({
   }
 }
 
+let lastUnreadCount = 0;
+let unsubscribeUnread = null;
+
 export function listenForUnreadNotifications() {
   const user = auth.currentUser;
   if (!user) return;
 
+  if (unsubscribeUnread) return unsubscribeUnread;
+
   const ref = collection(db, "users", user.uid, "notifications");
   const q = query(ref, where("read", "==", false));
 
-  onSnapshot(q, (snap) => {
-    const hasUnread = !snap.empty;
-    const unread = document.getElementById('unread');
+  let firstEmission = true;
 
-    if (unread) {
-      unread.classList.toggle("has-unread", hasUnread);
+  unsubscribeUnread = onSnapshot(q, (snap) => {
+    const unreadCount = snap.size;
+    const hasUnread = unreadCount > 0;
+
+    const unreadEl = document.getElementById("unread");
+    if (unreadEl) unreadEl.classList.toggle("has-unread", hasUnread);
+    document.title = hasUnread ? `(${unreadCount}) Wyntr` : "Wyntr";
+
+    if (firstEmission) {
+      firstEmission = false;
+      lastUnreadCount = unreadCount;
+      return;
     }
 
-    if (hasUnread && document.visibilityState === "visible") {
-      showBrowserNotification(snap.size);
+    if (notificationsEnabled && unreadCount > lastUnreadCount) {
+      showBrowserNotification(unreadCount);
     }
+
+    lastUnreadCount = unreadCount;
   });
+
+  return unsubscribeUnread;
 }
 
 function showBrowserNotification(count) {
   if (!("Notification" in window)) return;
   if (Notification.permission !== "granted") return;
 
+  const tabInFront = document.visibilityState === "visible" && document.hasFocus();
+  if (tabInFront) return;
+
   new Notification("You have new notifications", {
     body: `You have ${count} unread notification${count > 1 ? "s" : ""}`,
-    icon: "/image/W.png"
+    icon: "image/icon.png",
+    tag: "wyntr-unread",
+    renotify: true
   });
 }
 
@@ -251,6 +274,7 @@ document.getElementById('notifsvg').addEventListener("click", async () => {
   notificationsContainer.innerHTML = "";
   notificationLastDoc = null;
   await loadNotifications(true);
+
   const user = auth.currentUser;
   if (user) {
     const notificationsRef = collection(db, "users", user.uid, "notifications");
@@ -258,13 +282,10 @@ document.getElementById('notifsvg').addEventListener("click", async () => {
     const snap = await getDocs(unreadQuery);
 
     const batch = writeBatch(db);
-    snap.docs.forEach(docSnap => {
-      batch.update(docSnap.ref, {
-        read: true
-      });
-    });
+    snap.docs.forEach(docSnap => batch.update(docSnap.ref, { read: true }));
     await batch.commit();
   }
+  document.title = "Wyntr";
 });
 
 function textClamp(text, maxLength = 30) {
@@ -467,3 +488,40 @@ document.getElementById("notifications").addEventListener("scroll", async () => 
     }
   }
 });
+
+const notifToggle = document.getElementById("notif-toggle");
+
+const savedSetting = localStorage.getItem("notificationsEnabled");
+if (savedSetting !== null) {
+  notificationsEnabled = savedSetting === "true";
+} else {
+  notificationsEnabled = Notification.permission === "granted";
+}
+notifToggle.checked = notificationsEnabled;
+
+notifToggle.addEventListener("change", async () => {
+  if (notifToggle.checked) {
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission === "granted") {
+        notificationsEnabled = true;
+        localStorage.setItem("notificationsEnabled", "true");
+        console.log("Push notifications enabled");
+      } else {
+        notifToggle.checked = false;
+        notificationsEnabled = false;
+        localStorage.setItem("notificationsEnabled", "false");
+      }
+    } catch (err) {
+      console.error("Permission request failed:", err);
+      notifToggle.checked = false;
+      notificationsEnabled = false;
+      localStorage.setItem("notificationsEnabled", "false");
+    }
+  } else {
+    notificationsEnabled = false;
+    localStorage.setItem("notificationsEnabled", "false");
+    console.log("Push notifications disabled");
+  }
+});
+
