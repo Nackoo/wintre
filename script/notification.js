@@ -4,7 +4,6 @@ import { renderTweet } from "./index.js";
 let notificationLastDoc = null;
 let notificationLoading = false;
 const NOTIFICATION_PAGE_SIZE = 30;
-let notificationsEnabled = true; 
 
 const notificationsContainer = document.getElementById("notifications");
 
@@ -130,55 +129,28 @@ export async function handleNotificationClick({
 }
 
 let lastUnreadCount = 0;
-let unsubscribeUnread = null;
 
 export function listenForUnreadNotifications() {
   const user = auth.currentUser;
   if (!user) return;
 
-  if (unsubscribeUnread) return unsubscribeUnread;
-
   const ref = collection(db, "users", user.uid, "notifications");
   const q = query(ref, where("read", "==", false));
 
-  let firstEmission = true;
-
-  unsubscribeUnread = onSnapshot(q, (snap) => {
+  onSnapshot(q, (snap) => {
     const unreadCount = snap.size;
     const hasUnread = unreadCount > 0;
+    const unread = document.getElementById('unread');
 
-    const unreadEl = document.getElementById("unread");
-    if (unreadEl) unreadEl.classList.toggle("has-unread", hasUnread);
-    document.title = hasUnread ? `(${unreadCount}) Wyntr` : "Wyntr";
-
-    if (firstEmission) {
-      firstEmission = false;
-      lastUnreadCount = unreadCount;
-      return;
+    if (unread) {
+      unread.classList.toggle("has-unread", hasUnread);
     }
 
-    if (notificationsEnabled && unreadCount > lastUnreadCount) {
-      showBrowserNotification(unreadCount);
+    if (unreadCount === 0) {
+      document.title = "Wyntr";
+    } else {
+      document.title = `(${unreadCount}) Wyntr`;
     }
-
-    lastUnreadCount = unreadCount;
-  });
-
-  return unsubscribeUnread;
-}
-
-function showBrowserNotification(count) {
-  if (!("Notification" in window)) return;
-  if (Notification.permission !== "granted") return;
-
-  const tabInFront = document.visibilityState === "visible" && document.hasFocus();
-  if (tabInFront) return;
-
-  new Notification("You have new notifications", {
-    body: `You have ${count} unread notification${count > 1 ? "s" : ""}`,
-    icon: "image/icon.png",
-    tag: "wyntr-unread",
-    renotify: true
   });
 }
 
@@ -488,40 +460,3 @@ document.getElementById("notifications").addEventListener("scroll", async () => 
     }
   }
 });
-
-const notifToggle = document.getElementById("notif-toggle");
-
-const savedSetting = localStorage.getItem("notificationsEnabled");
-if (savedSetting !== null) {
-  notificationsEnabled = savedSetting === "true";
-} else {
-  notificationsEnabled = Notification.permission === "granted";
-}
-notifToggle.checked = notificationsEnabled;
-
-notifToggle.addEventListener("change", async () => {
-  if (notifToggle.checked) {
-    try {
-      const permission = await Notification.requestPermission();
-      if (permission === "granted") {
-        notificationsEnabled = true;
-        localStorage.setItem("notificationsEnabled", "true");
-        console.log("Push notifications enabled");
-      } else {
-        notifToggle.checked = false;
-        notificationsEnabled = false;
-        localStorage.setItem("notificationsEnabled", "false");
-      }
-    } catch (err) {
-      console.error("Permission request failed:", err);
-      notifToggle.checked = false;
-      notificationsEnabled = false;
-      localStorage.setItem("notificationsEnabled", "false");
-    }
-  } else {
-    notificationsEnabled = false;
-    localStorage.setItem("notificationsEnabled", "false");
-    console.log("Push notifications disabled");
-  }
-});
-
