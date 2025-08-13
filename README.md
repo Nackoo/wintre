@@ -44,7 +44,7 @@ service cloud.firestore {
 
       // Mentions
       match /mentioned/{tweetId} {
-        allow read: if request.auth != null && request.auth.uid == userId;
+        allow read: if request.auth != null;
         allow create: if request.auth != null &&
           exists(/databases/$(database)/documents/tweets/$(tweetId)) &&
           userId in get(/databases/$(database)/documents/tweets/$(tweetId)).data.mentions;
@@ -88,7 +88,12 @@ service cloud.firestore {
     		// Allow updating likeCount
     		(request.writeFields.size() == 1 &&
      		request.writeFields.hasOnly(['likeCount'])) ||
-
+        
+        // Allow updating viewCount
+				(request.writeFields.size() == 1 &&
+        request.writeFields.hasOnly(['viewCount']) &&
+        request.resource.data.viewCount == resource.data.viewCount + 1) ||
+        
     		// Allow tweet owner to update pinnedCommentId
     		(request.auth.uid == resource.data.uid &&
      		request.writeFields.size() == 1 &&
