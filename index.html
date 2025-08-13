@@ -4,11 +4,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta property="og:title" content="Wintre">
+  <meta property="og:title" content="Wyntr">
   <meta property="og:description" content="From breaking news and entertainment to sports and politics.">
   <meta property="og:image" content="/wintre">
-  <link rel="icon" type="image/png" href="image/W.png">
-  <title>Wintre</title>
+  <link rel="icon" type="image/png" href="image/icon.png">
+  <title>Wyntr</title>
   <link rel="stylesheet" href="style/index.css">
   <link rel="stylesheet" href="style/user.css">
 </head>
@@ -49,18 +49,19 @@
       <div style="border-bottom: var(--border); align-items: center; margin-bottom: 0;display: flex; gap: 8px;"><span id="my-ers"><span id="my-followers" style="font-weight:bold;">0</span> <span style="color:grey">followers</span></span> <span id="my-ing"><span id="my-following" style="font-weight:bold;">0</span> <span style="color:grey">following</span></span>
         <p style="margin-left:auto;"><span id="my-posts" style="font-weight:bold;">0</span> <span style="color:grey">wints</span></p>
       </div>
-      <div class="tab-container">
-        <button class="tab2 active" data-target="youList">Wints</button>
-        <button class="tab2" data-target="mentionedList">Mentioned</button>
-      </div>
-      <div class="flex" style="margin-bottom:20px;gap:12px;">
+      <div class="flex" style="margin-top:20px;gap:12px;">
         <button onclick="document.getElementById('profileInput').value='';
         document.getElementById('profileInput').dispatchEvent(new Event('input'));" style="background: none;"><img src="image/x.svg"></button>
         <input type="text" id="profileInput" placeholder="search anything"></input>
       </div>
+      <div class="tab-container">
+        <button class="tab2 active" data-target="youList">Wints</button>
+        <button class="tab2" data-target="mentionedList">Mentioned</button>
+      </div>
       <div id="youList" class="tab-content"></div>
       <div id="mentionedList" class="tab-content hidden"></div>
-      <div id="youLoadMore" class="read-more link">Load more</div>
+      <div id="youLoadMore" style="display:none" class="read-more link">Load more</div>
+      <div id="myouLoadMore" style="display:none" class="read-more link">Load more</div>
       <br><br><br>
     </div>
   </div>
@@ -111,12 +112,12 @@
         <input type="text" placeholder="search anything"></input>
       </header>
       <div class="tab-container">
-        <button class="tab1 active" data-target="tweetsView">Wints</button>
+        <button class="tab1 active" data-target="tweetsView">Wynts</button>
         <button class="tab1" data-target="usersView">Users</button>
         <button class="tab1" data-target="tagsView">tags</button>
       </div>
       <div id="tweetsView" class="tab-content"><span style="color:grey">
-          <p style="color:gray;">enter at least 3 characters to search Wints</p>
+          <p style="color:gray;">enter at least 3 characters to search Wynts</p>
         </span></div>
       <div id="usersView" class="tab-content hidden"></div>
       <div id="tagsView" class="tab-content hidden"></div>
@@ -161,17 +162,23 @@
       <h2 id="user-name" style="margin-top:80px;"></h2>
       <p id="user-description"></p>
       <p style="display:flex;align-items:center;"><img src="image/calendar.svg" style="margin-right:6px"><span id="user-creation"></span></p>
-      <div style="border-bottom: var(--border); align-items: center; margin-bottom: 30px;display: flex; gap: 8px;"><span id="ers"><span id="followers" style="font-weight:bold;">0</span> <span style="color:grey">followers</span></span> <span id="ing"><span id="following" style="font-weight:bold;">0</span> <span style="color:grey">following</span></span>
-        <p style="margin-left:auto;"><span id="posts" style="font-weight:bold;">0</span> <span style="color:grey">wints</span></p>
+      <div style="border-bottom: var(--border); align-items: center; margin-bottom: 20px;display: flex; gap: 8px;"><span id="ers"><span id="followers" style="font-weight:bold;">0</span> <span style="color:grey">followers</span></span> <span id="ing"><span id="following" style="font-weight:bold;">0</span> <span style="color:grey">following</span></span>
+        <p style="margin-left:auto;"><span id="posts" style="font-weight:bold;">0</span> <span style="color:grey">wynts</span></p>
       </div>
-      <div class="flex" style="margin-bottom:20px;gap:12px;">
+      <div class="flex" style="margin:0;gap:12px;">
         <button onclick="
         document.getElementById('userInput').value='';
         document.getElementById('userInput').dispatchEvent(new Event('input'));" style="background: none;"><img src="image/x.svg"></button>
         <input type="text" id="userInput" placeholder="search anything"></input>
       </div>
+      <div class="tab-container">
+        <button class="tab3 active" data-target="userList">Wynts</button>
+        <button class="tab3" data-target="usermentionedList">Mentioned</button>
+      </div>
       <div id="userList"></div>
-      <div id="userLoadMore" class="read-more link">Load more</div>
+      <div id="usermentionedList"></div>
+      <div id="userLoadMore" style="display:none;" class="read-more link">Load more</div>
+      <div id="mLoadMore" style="display:none;" class="read-more link">Load more</div>
       <br><br><br>
     </div>
   </div>
@@ -196,7 +203,7 @@
     <div id="sidebar">
       <div id="retweetOverlay" class="overlay hidden">
         <div class="comment-box">
-          <h3>Rewint</h3>
+          <h3>Rewynt</h3>
           <div id="retweetOriginal" style="margin-bottom:20px;"></div>
           <textarea id="retweetText" placeholder="what do you think...?" style="width:100%;height:100px;"></textarea>
           <div class="attachment" id="retweetPreview-TWEETID"></div>
@@ -266,9 +273,7 @@
             <option value="mentioned">people you mention can comment</option>
           </select>
           <div class="flex">
-            <button id="postBtn" style="padding:7px 15px" onclick="
-        document.getElementById('tweetOverlay').classList.add('hidden');
-      ">Wint</button>
+            <button id="postBtn" style="padding:7px 15px">Wynt</button>
             <label class="custom-file-btn" for="mediaInput"><img src="image/upload.svg"></label>
             <input type="file" id="mediaInput" class="hidden-input" accept="image/*,video/*">
             <button class="no-bg" style="margin-left: auto;" onclick="
