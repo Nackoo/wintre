@@ -1,7 +1,7 @@
 import { app, auth, db, storage, initializeApp, getAuth, increment, onAuthStateChanged, getFirestore, collection, addDoc, query, orderBy, limit, startAfter, where, onSnapshot, doc, setDoc, deleteDoc, getDoc, getDocs, getCountFromServer, getStorage, ref, uploadBytes, getDownloadURL, updateDoc } from "./firebase.js";
 import { extractMentions } from './mention.js';
 import { handleTags } from './tags.js';
-import { sendCommentNotification, sendReplyNotification, listenForUnreadNotifications, loadNotifications, sendMentionNotification, sendRetweetNotification } from './notification.js';
+import { sendCommentNotification, sendReplyNotification, listenForUnreadNotifications, loadNotifications, sendMentionNotification, sendRetweetNotification, sendReplyMentionNotification, sendCommentMentionNotification } from './notification.js';
 import { createClient, SUPABASE_URL, SUPABASE_ANON_KEY, MAX_FILE_BYTES, supabase } from "./firebase.js"
 
 let lastTweet = null;
@@ -16,31 +16,83 @@ async function uploadToSupabase(file, uid) {
     type: ""
   };
 
-  if (file.size > 20 * 1024 * 1024) {
-    throw new Error("File is too large (max 20MB).");
+  if (file.type.startsWith("image/")) {
+    const compressedBase64 = await compressImageTo480(file);
+
+    const base64Size = Math.ceil((compressedBase64.length * 3) / 4);
+    if (base64Size > 3 * 1024 * 1024) {
+      alert("Image is too large after compression (max 3MB).");
+      return {
+        url: "",
+        type: ""
+      };
+    }
+    return {
+      url: compressedBase64,
+      type: "image"
+    };
   }
 
-  const type = file.type.startsWith("video/") ? "video" : "image";
-  const ext = file.name.split('.').pop();
-  const filePath = `wints/${uid}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+  if (file.type.startsWith("video/")) {
+    if (file.size > 3 * 1024 * 1024) {
+      alert("Video exceeds 3MB. Please upload a smaller file.");
+      return {
+        url: "",
+        type: ""
+      };
+    }
 
-  const {
-    error
-  } = await supabase
-    .storage
-    .from("wints")
-    .upload(filePath, file, {
-      cacheControl: "3600",
-      upsert: false
-    });
+    const {
+      data,
+      error
+    } = await supabase.storage
+      .from("wints")
+      .upload(`wints/${uid}-${Date.now()}`, file, {
+        upsert: true
+      });
 
-  if (error) throw error;
+    if (error) {
+      console.error("Video upload error:", error);
+      return {
+        url: "",
+        type: ""
+      };
+    }
 
-  const url = `${SUPABASE_URL}/storage/v1/object/public/wints/${encodeURIComponent(filePath)}`;
+    const {
+      data: publicUrlData
+    } = supabase.storage.from("wints").getPublicUrl(data.path);
+    return {
+      url: publicUrlData.publicUrl,
+      type: "video"
+    };
+  }
+
+  alert("Unsupported file type.");
   return {
-    url,
-    type
+    url: "",
+    type: ""
   };
+}
+
+async function compressImageTo480(file) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const scale = 480 / img.width;
+        canvas.width = 480;
+        canvas.height = img.height * scale;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", 0.7));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
 function showImagePreview(input, previewElementId) {
@@ -54,12 +106,12 @@ function showImagePreview(input, previewElementId) {
     reader.onload = e => {
       if (file.type.startsWith("video/")) {
         preview.innerHTML = `
-          <video controls class="attachment">
-            <source src="${e.target.result}">
-          </video>`;
+<video controls class="attachment">
+  <source src="${e.target.result}">
+</video>`;
       } else {
         preview.innerHTML = `
-          <img src="${e.target.result}" class="attachment">`;
+<img src="${e.target.result}" class="attachment">`;
       }
     };
     reader.readAsDataURL(file);
@@ -97,8 +149,8 @@ async function retryWhenBackOnline() {
 
     await loadTweets(true);
   } catch (err) {
-    if (logEl) logEl.textContent = "failed to reload wints";
-    console.error("Failed to reload wints after reconnect", err);
+    if (logEl) logEl.textContent = "failed to reload wynts";
+    console.error("Failed to reload wynts after reconnect", err);
   }
 }
 
@@ -129,18 +181,13 @@ onAuthStateChanged(auth, async (user) => {
       let suffix = 1;
 
       while (suffix <= 100) {
-        const querySnapshot = await getDocs(
-          query(collection(db, "users"), where("displayName", "==", finalName))
-        );
-
+        const querySnapshot = await getDocs(query(collection(db, "users"), where("displayName", "==", finalName)));
         if (querySnapshot.empty) {
           break;
         }
-
         finalName = `${baseName}${suffix}`;
         suffix++;
       }
-
       await setDoc(ref, {
         displayName: finalName,
         photoURL: user.photoURL,
@@ -150,38 +197,27 @@ onAuthStateChanged(auth, async (user) => {
     } else {
       const data = snap.data();
       const updateData = {};
-
-      if (!("createdAt" in data)) {
+      if (!data.createdAt) {
         updateData.createdAt = new Date();
       }
-
       if (!("posts" in data)) {
         updateData.posts = 0;
       }
-
       if (!("displayName" in data)) {
         const rawName = user.displayName || "user";
         const baseName = rawName.replace(/[^a-zA-Z0-9._-]/g, "") || "user";
-
         let finalName = baseName;
         let suffix = 1;
-
         while (suffix <= 100) {
-          const querySnapshot = await getDocs(
-            query(collection(db, "users"), where("displayName", "==", finalName))
-          );
-
+          const querySnapshot = await getDocs(query(collection(db, "users"), where("displayName", "==", finalName)));
           if (querySnapshot.empty) {
             break;
           }
-
           finalName = `${baseName}${suffix}`;
           suffix++;
         }
-
         updateData.displayName = finalName;
       }
-
       if (Object.keys(updateData).length > 0) {
         await setDoc(ref, updateData, {
           merge: true
@@ -199,18 +235,14 @@ function linkify(text) {
 }
 
 function formatDate(timestamp) {
-  const date = timestamp instanceof Date ? timestamp : timestamp.toDate();
-  const options = {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric'
-  };
-  const datePart = date.toLocaleDateString("en-GB", options);
-  const timePart = date.toLocaleTimeString("en-GB", {
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-  return `${datePart} • ${timePart}`;
+  if (!timestamp) return "";
+
+  const date = timestamp.toDate();
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+
+  return `${day}/${month}/${year}`;
 }
 
 function resizeImage(file, maxWidth = 800, maxHeight = 800) {
@@ -256,11 +288,46 @@ function readFileAsBase64(file) {
 }
 
 document.getElementById("postBtn").addEventListener("click", async () => {
+  const btn = document.getElementById("postBtn");
+  btn.disabled = true;
+  btn.classList.add('disabled');
+
   const user = auth.currentUser;
-  if (!user) return;
+  if (!user) {
+    btn.disabled = false;
+    btn.classList.remove('disabled');
+    return;
+  }
+
+  // 🔹 Check cooldown
+  const userRef = doc(db, "users", user.uid);
+  const userSnap = await getDoc(userRef);
+  if (userSnap.exists()) {
+    const data = userSnap.data();
+    if (data.cooldown?.toDate) {
+      const now = new Date();
+      const cooldownTime = data.cooldown.toDate();
+      if (now < cooldownTime) {
+        const diffMs = cooldownTime - now;
+        const diffMins = Math.ceil(diffMs / 60000);
+        alert(`Cooldown resets in ${diffMins} minute${diffMins> 1 ? 's' : ''}`);
+        btn.disabled = false;
+        btn.classList.remove('disabled');
+        return;
+      }
+    }
+  }
 
   const text = document.getElementById("tweetInput").value.trim();
-  const file = document.getElementById("mediaInput").files[0];
+  const fileInput = document.getElementById("mediaInput");
+  const file = fileInput.files[0];
+
+  if (file && file.size > 3 * 1024 * 1024) {
+    alert("File size exceeds 3MB. Please choose a smaller file.");
+    btn.disabled = false;
+    btn.classList.remove('disabled');
+    return;
+  }
 
   let mediaURL = "";
   let mediaType = "";
@@ -272,7 +339,11 @@ document.getElementById("postBtn").addEventListener("click", async () => {
       mediaType = upload.type;
     }
 
-    if (!text && !mediaURL) return;
+    if (!text && !mediaURL) {
+      btn.disabled = false;
+      btn.classList.remove('disabled');
+      return;
+    }
 
     const permission = document.getElementById("replyPermission").value;
     const tagMatches = text.match(/#(\w+)/g) || [];
@@ -309,8 +380,9 @@ document.getElementById("postBtn").addEventListener("click", async () => {
     await setDoc(doc(db, "users", user.uid, "posts", tweetRef.id), {
       exists: true
     });
-    await updateDoc(doc(db, "users", auth.currentUser.uid), {
-      posts: increment(1)
+    await updateDoc(userRef, {
+      posts: increment(1),
+      cooldown: new Date(Date.now() + 15 * 60 * 1000)
     });
 
     document.getElementById("tweetInput").value = "";
@@ -321,6 +393,10 @@ document.getElementById("postBtn").addEventListener("click", async () => {
     console.error("❌ Tweet failed:", error);
     alert(error.message || "Upload failed");
   }
+
+  btn.disabled = false;
+  btn.classList.remove('disabled');
+  document.getElementById('tweetOverlay').classList.add('hidden');
 });
 
 function applyReadMoreLogic(container) {
@@ -357,20 +433,13 @@ function applyReadMoreLogic(container) {
             btn.remove();
           }
         });
-
         p.insertAdjacentElement("afterend", btn);
       }
     });
   });
 }
-
 async function renderTweets(user) {
-  const q = query(
-    collection(db, "tweets"),
-    orderBy("likeCount", "desc"),
-    orderBy("createdAt", "desc")
-  );
-
+  const q = query(collection(db, "tweets"), orderBy("likeCount", "desc"), orderBy("createdAt", "desc"));
   onSnapshot(q, async (snapshot) => {
     for (const change of snapshot.docChanges()) {
       const docSnap = change.doc;
@@ -413,14 +482,14 @@ export async function parseMentionsToLinks(text) {
     const regex = new RegExp(`@${displayName.replace(/\./g, "\\.")}`, "g");
     text = text.replace(regex, (match) => {
       const id = token();
-      tokens[id] = `<span class="user-link" data-uid="${uid}" style="color:#1da1f2; cursor:pointer">${match}</span>`;
+      tokens[id] = `<span class="user-link" data-uid="${uid}" style="color:#00ba7c; cursor:pointer">${match}</span>`;
       return id;
     });
   }
 
   text = text.replace(/#(\w+)/g, (match, tag) => {
     const id = token();
-    tokens[id] = `<span class="tag-link" data-tag="${tag}" style="color:#1da1f2; cursor:pointer">${match}</span>`;
+    tokens[id] = `<span class="tag-link" data-tag="${tag}" style="color:#00ba7c; cursor:pointer">${match}</span>`;
     return id;
   });
 
@@ -452,7 +521,6 @@ function escapeHTML(str) {
 function setupSoundToggle(tweetElement) {
   const btn = tweetElement.querySelector(".sound-toggle-btn");
   if (!btn) return;
-
   btn.addEventListener("click", () => {
 
     const allVideos = document.querySelectorAll("video");
@@ -486,10 +554,8 @@ function setupVideoAutoplayOnVisibility(tweetElement) {
       if (
         overlayRect.width > 0 &&
         overlayRect.height > 0 &&
-        !(overlayRect.right < videoRect.left ||
-          overlayRect.left > videoRect.right ||
-          overlayRect.bottom < videoRect.top ||
-          overlayRect.top > videoRect.bottom)
+        !(overlayRect.right < videoRect.left || overlayRect.left > videoRect.right ||
+          overlayRect.bottom < videoRect.top || overlayRect.top > videoRect.bottom)
       ) {
         return true;
       }
@@ -515,7 +581,9 @@ function setupVideoAutoplayOnVisibility(tweetElement) {
       visibilityMap.set(entry.target, entry.isIntersecting);
       updateVideoState(entry.target);
     });
-  }, { threshold: 0.65 });
+  }, {
+    threshold: 0.65
+  });
 
   videos.forEach(video => {
     if (!video.hasAttribute("muted")) {
@@ -534,15 +602,21 @@ function setupVideoAutoplayOnVisibility(tweetElement) {
   function onScrollOrResize() {
     videos.forEach(video => updateVideoState(video));
   }
-  window.addEventListener('scroll', onScrollOrResize, { passive: true });
+  window.addEventListener('scroll', onScrollOrResize, {
+    passive: true
+  });
   window.addEventListener('resize', onScrollOrResize);
 
-  const overlaysParent = document.body; 
+  const overlaysParent = document.body;
   const mutationObserver = new MutationObserver(() => {
     videos.forEach(video => updateVideoState(video));
   });
 
-  mutationObserver.observe(overlaysParent, { attributes: true, childList: true, subtree: true });
+  mutationObserver.observe(overlaysParent, {
+    attributes: true,
+    childList: true,
+    subtree: true
+  });
 }
 
 export async function renderTweet(t, tweetId, user, action = "prepend", container = document.getElementById("timeline")) {
@@ -619,27 +693,30 @@ export async function renderTweet(t, tweetId, user, action = "prepend", containe
   if (t.media && t.mediaType === "image") {
     if (containsSpoiler) {
       mediaHTML = `
-  <div class="attachment spoiler-media" onclick="this.classList.add('revealed')">
-    <div class="spoiler-overlay"><div class="spoilertxt">spoiler</div></div>
-    <img src="${t.media}" style="max-width: 100%; max-height: 300px; border-radius: 10px;" alt="tweet image" />
-  </div>`;
+              <div class="attachment spoiler-media" onclick="this.classList.add('revealed')">
+                <div class="spoiler-overlay">
+                  <div class="spoilertxt">spoiler</div>
+                </div>
+                <img src="${t.media}" style="max-width: 100%; max-height: 300px; border-radius: 10px;" alt="tweet image" />
+              </div>`;
     } else {
       mediaHTML = `
-      <div class="attachment">
-        <img src="${t.media}" style="max-width: 100%; max-height: 300px; border-radius: 10px;" alt="tweet image" />
-      </div>`;
+              <div class="attachment">
+                <img src="${t.media}" style="max-width: 100%; max-height: 300px; border-radius: 10px;" alt="tweet image" />
+              </div>`;
     }
   } else if (t.media && t.mediaType === "video") {
     if (containsSpoiler) {
       mediaHTML = `
-  <div class="attachment spoiler-media" style="position: relative; max-width: 100%; max-height: 300px;" onclick="this.classList.add('revealed')">
-    <div class="spoiler-overlay"><div class="spoilertxt">spoiler</div></div>
-    <video style="max-width: 100%; max-height: 300px; border-radius: 10px;" muted controls>
-      <source src="${t.media}" type="video/mp4" />
-      Your browser does not support the video tag.
-    </video>
-      <button class="sound-toggle-btn" aria-label="Toggle sound" 
-      style="
+              <div class="attachment spoiler-media" style="position: relative; max-width: 100%; max-height: 300px;" onclick="this.classList.add('revealed')">
+                <div class="spoiler-overlay">
+                  <div class="spoilertxt">spoiler</div>
+                </div>
+                <video style="max-width: 100%; max-height: 300px; border-radius: 10px;" muted controls>
+                  <source src="${t.media}" type="video/mp4" />
+                  Your browser does not support the video tag.
+                </video>
+                <button class="sound-toggle-btn" aria-label="Toggle sound" style="
         position: absolute;
         top: 8px;
         right: 8px;
@@ -654,19 +731,18 @@ export async function renderTweet(t, tweetId, user, action = "prepend", containe
         cursor: pointer;
         color: white;
       ">
-      <img src='image/volume-muted.svg'>
-    </button>
-  </div>`;
+                  <img src='image/volume-muted.svg'>
+                </button>
+              </div>`;
 
     } else {
       mediaHTML = `
-  <div class="attachment" style="position: relative; max-width: 100%; max-height: 300px;">
-    <video muted controls style="max-width: 100%; max-height: 300px; border-radius: 10px;">
-      <source src="${t.media}" type="video/mp4" />
-      Your browser does not support the video tag.
-    </video>
-    <button class="sound-toggle-btn" aria-label="Toggle sound" 
-      style="
+              <div class="attachment" style="position: relative; max-width: 100%; max-height: 300px;">
+                <video muted controls style="max-width: 100%; max-height: 300px; border-radius: 10px;">
+                  <source src="${t.media}" type="video/mp4" />
+                  Your browser does not support the video tag.
+                </video>
+                <button class="sound-toggle-btn" aria-label="Toggle sound" style="
         position: absolute;
         top: 8px;
         right: 8px;
@@ -681,9 +757,9 @@ export async function renderTweet(t, tweetId, user, action = "prepend", containe
         cursor: pointer;
         color: white;
       ">
-      <img src='image/volume-muted.svg'>
-    </button>
-  </div>`;
+                  <img src='image/volume-muted.svg'>
+                </button>
+              </div>`;
     }
   }
 
@@ -702,116 +778,116 @@ export async function renderTweet(t, tweetId, user, action = "prepend", containe
       if (hasImage && hasText) {
 
         retweetHTML = `
-          <div class="tweet retweet original-tweet-link" data-id="${t.retweetOf}">
-            <div class="flex" style="gap:10px; align-items:center;">
-              <img class="avatar" src="${escapeHTML(rtAvatar)}" onerror="this.src='image/default-avatar.jpg'" width="30">
-              <strong class="user-link" data-uid="${rt.uid}" style="cursor:pointer">${escapeHTML(rtDisplayName)}</strong>
-              <span style="color:grey;">${rDate}</span>
-            </div>
-            <div style="display: flex; gap: 12px; align-items: flex-start; margin-top: 20px;">
-              <img class="attachment2" src="${rt.media}" style="width: 100px; height: 100px; object-fit: cover; border-radius: 5px; margin-left:4px" alt="retweet image" />
-              <p style="margin: 0;">${await parseMentionsToLinks(rt.text)}</p>
-            </div>
-          </div>
-        `;
+              <div class="tweet retweet original-tweet-link" data-id="${t.retweetOf}">
+                <div class="flex" style="gap:10px; align-items:center;">
+                  <img class="avatar" src="${escapeHTML(rtAvatar)}" onerror="this.src='image/default-avatar.jpg'" width="30">
+                  <strong class="user-link" data-uid="${rt.uid}" style="cursor:pointer">${escapeHTML(rtDisplayName)}</strong>
+                  <span style="color:grey;">${rDate}</span>
+                </div>
+                <div style="display: flex; gap: 12px; align-items: flex-start; margin-top: 20px;">
+                  <img class="attachment2" src="${rt.media}" style="width: 100px; height: 100px; object-fit: cover; border-radius: 5px; margin-left:4px" alt="retweet image" />
+                  <p style="margin: 0;">${await parseMentionsToLinks(rt.text)}</p>
+                </div>
+              </div>
+              `;
       } else if (hasImage) {
         retweetHTML = `
-          <div class="tweet retweet original-tweet-link" data-id="${t.retweetOf}">
-            <div class="flex" style="gap:10px; align-items:center;">
-              <img class="avatar" src="${escapeHTML(rtAvatar)}" onerror="this.src='image/default-avatar.jpg'" width="30">
-              <strong class="user-link" data-uid="${rt.uid}" style="cursor:pointer">${escapeHTML(rtDisplayName)}</strong>
-              <span style="color:grey;">${rDate}</span>
-            </div>
-            <div class="rt-attachment" style="margin-top: 10px;">
-              <img src="${rt.media}" style="max-width: 100%; max-height: 300px; border-radius: 10px;" alt="retweet image" />
-            </div>
-          </div>
-        `;
-      } else if (hasVideo && hasText) {
-  retweetHTML = `
-          <div class="tweet retweet original-tweet-link" data-id="${t.retweetOf}">
-            <div class="flex" style="gap:10px; align-items:center;">
-              <img class="avatar" src="${escapeHTML(rtAvatar)}" onerror="this.src='image/default-avatar.jpg'" width="30">
-              <strong class="user-link" data-uid="${rt.uid}" style="cursor:pointer">${escapeHTML(rtDisplayName)}</strong>
-              <span style="color:grey;">${rDate}</span>
-            </div>
-            <div style="display: flex; gap: 12px; align-items: flex-start; margin-top: 20px;">
-              <div class="attachment2">
-              <video controls style="max-width: 100px; max-height: 100px; border-radius: 10px;">
-                <source src="${rt.media}" type="video/mp4" />
-              </video>
+              <div class="tweet retweet original-tweet-link" data-id="${t.retweetOf}">
+                <div class="flex" style="gap:10px; align-items:center;">
+                  <img class="avatar" src="${escapeHTML(rtAvatar)}" onerror="this.src='image/default-avatar.jpg'" width="30">
+                  <strong class="user-link" data-uid="${rt.uid}" style="cursor:pointer">${escapeHTML(rtDisplayName)}</strong>
+                  <span style="color:grey;">${rDate}</span>
+                </div>
+                <div class="rt-attachment" style="margin-top: 10px;">
+                  <img src="${rt.media}" style="max-width: 100%; max-height: 300px; border-radius: 10px;" alt="retweet image" />
+                </div>
               </div>
-              <p style="margin: 0;">${await parseMentionsToLinks(rt.text)}</p>
-            </div>
-          </div>
-  `;
-} else if (hasVideo) {
-  retweetHTML = `
-    <div class="tweet retweet original-tweet-link" data-id="${t.retweetOf}">
-      <div class="flex" style="gap:10px; align-items:center;">
-        <img class="avatar" src="${escapeHTML(rtAvatar)}" onerror="this.src='image/default-avatar.jpg'" width="30">
-        <strong class="user-link" data-uid="${rt.uid}" style="cursor:pointer">${escapeHTML(rtDisplayName)}</strong>
-        <span style="color:grey;">${rDate}</span>
-      </div>
-      <div class="rt-attachment" style="margin-top: 10px;">
-        <video controls style="max-width: 100%; max-height: 300px; border-radius: 10px;">
-          <source src="${rt.media}" type="video/mp4" />
-        </video>
-      </div>
-    </div>
-  `;
-} else {
+              `;
+      } else if (hasVideo && hasText) {
         retweetHTML = `
-          <div class="tweet retweet original-tweet-link" data-id="${t.retweetOf}">
-            <div class="flex" style="gap:10px; align-items:center;">
-              <img class="avatar" src="${escapeHTML(rtAvatar)}" onerror="this.src='image/default-avatar.jpg'" width="30">
-              <strong class="user-link" data-uid="${rt.uid}" style="cursor:pointer">${escapeHTML(rtDisplayName)}</strong>
-              <span style="color:grey;">${rDate}</span>
-            </div>
-            <p style="margin-top: 10px;">${await parseMentionsToLinks(rt.text)}</p>
-          </div>
-        `;
+              <div class="tweet retweet original-tweet-link" data-id="${t.retweetOf}">
+                <div class="flex" style="gap:10px; align-items:center;">
+                  <img class="avatar" src="${escapeHTML(rtAvatar)}" onerror="this.src='image/default-avatar.jpg'" width="30">
+                  <strong class="user-link" data-uid="${rt.uid}" style="cursor:pointer">${escapeHTML(rtDisplayName)}</strong>
+                  <span style="color:grey;">${rDate}</span>
+                </div>
+                <div style="display: flex; gap: 12px; align-items: flex-start; margin-top: 20px;">
+                  <div class="attachment2">
+                    <video controls style="max-width: 100px; max-height: 100px; border-radius: 10px;">
+                      <source src="${rt.media}" type="video/mp4" />
+                    </video>
+                  </div>
+                  <p style="margin: 0;">${await parseMentionsToLinks(rt.text)}</p>
+                </div>
+              </div>
+              `;
+      } else if (hasVideo) {
+        retweetHTML = `
+              <div class="tweet retweet original-tweet-link" data-id="${t.retweetOf}">
+                <div class="flex" style="gap:10px; align-items:center;">
+                  <img class="avatar" src="${escapeHTML(rtAvatar)}" onerror="this.src='image/default-avatar.jpg'" width="30">
+                  <strong class="user-link" data-uid="${rt.uid}" style="cursor:pointer">${escapeHTML(rtDisplayName)}</strong>
+                  <span style="color:grey;">${rDate}</span>
+                </div>
+                <div class="rt-attachment" style="margin-top: 10px;">
+                  <video controls style="max-width: 100%; max-height: 300px; border-radius: 10px;">
+                    <source src="${rt.media}" type="video/mp4" />
+                  </video>
+                </div>
+              </div>
+              `;
+      } else {
+        retweetHTML = `
+              <div class="tweet retweet original-tweet-link" data-id="${t.retweetOf}">
+                <div class="flex" style="gap:10px; align-items:center;">
+                  <img class="avatar" src="${escapeHTML(rtAvatar)}" onerror="this.src='image/default-avatar.jpg'" width="30">
+                  <strong class="user-link" data-uid="${rt.uid}" style="cursor:pointer">${escapeHTML(rtDisplayName)}</strong>
+                  <span style="color:grey;">${rDate}</span>
+                </div>
+                <p style="margin-top: 10px;">${await parseMentionsToLinks(rt.text)}</p>
+              </div>
+              `;
       }
     } else {
       retweetHTML = `
-        <div class="tweet retweet">
-          <i>Original wint was deleted</i>
-        </div>
-      `;
+              <div class="tweet retweet">
+                <i>Original wynt was deleted</i>
+              </div>
+              `;
     }
   }
 
   const tweetHTML = `
-    <div class="tweet" id="tweet-${tweetId}" data-id="${tweetId}">
-      <div class="flex" style="gap:10px">
-        <img class="avatar" src="${escapeHTML(avatar)}" onerror="this.src='image/default-avatar.jpg'" width="30" />
-        <strong class="user-link" data-uid="${t.uid}" style="cursor:pointer;font-size:17px;">${escapeHTML(displayName)}</strong>
-        <span style="color:grey;font-size:13px">${dateStr}</span>
-      </div>
-      <p>${await parseMentionsToLinks(t.text)}</p>
-      ${mediaHTML}
-      ${retweetHTML}
-      <div class="flex">
-        <span style="cursor:pointer" class="like-btn" id="likeBtn-${tweetId}">
-          ${isLiked ? `<img src="image/filled-heart.svg">` : `<img src="image/heart.svg">`}
-          <span id="likeCount-${tweetId}">${likeCount}</span>
-        </span>     
-        <span style="cursor:pointer" class="comment-btn" data-id="${tweetId}">
-          <img src="image/message.svg"> ${commentCount}
-        </span>
-        <span style="cursor:pointer" class="retweet-btn" data-id="${tweetId}">
-          <img src="image/rewint.svg"> ${retweetCount}
-        </span>
-        <div style="margin-left:auto;">
-        <span style="cursor:pointer;" class="bookmark-btn" id="bookmarkBtn-${tweetId}">
-        ${isBookmarked ? `<img src="image/bookmark-filled.svg">` : `<img src="image/bookmark.svg">`}
-        </span>
-          ${auth.currentUser.uid === t.uid ? `<span style="cursor:pointer;margin-left:5px" class="delete-btn" data-id="${tweetId}"><img src="image/trash.svg"></span>` : ""}
-          <span style="margin-left:10px"><img src="image/chart.svg"> ${viewCount}</span>
-        </div>
-      </div>
-    </div>
-  `;
+              <div class="tweet" id="tweet-${tweetId}" data-id="${tweetId}">
+                <div class="flex" style="gap:10px">
+                  <img class="avatar" src="${escapeHTML(avatar)}" onerror="this.src='image/default-avatar.jpg'" width="30" />
+                  <strong class="user-link" data-uid="${t.uid}" style="cursor:pointer;font-size:17px;">${escapeHTML(displayName)}</strong>
+                  <span style="color:grey;font-size:13px">${dateStr}</span>
+                </div>
+                <p>${await parseMentionsToLinks(t.text)}</p>
+                ${mediaHTML}
+                ${retweetHTML}
+                <div class="flex">
+                  <span style="cursor:pointer" class="like-btn" id="likeBtn-${tweetId}">
+                    ${isLiked ? `<img src="image/filled-heart.svg">` : `<img src="image/heart.svg">`}
+                    <span id="likeCount-${tweetId}">${likeCount}</span>
+                  </span>
+                  <span style="cursor:pointer" class="comment-btn" data-id="${tweetId}">
+                    <img src="image/message.svg"> ${commentCount}
+                  </span>
+                  <span style="cursor:pointer" class="retweet-btn" data-id="${tweetId}">
+                    <img src="image/rewint.svg"> ${retweetCount}
+                  </span>
+                  <div style="margin-left:auto;">
+                    <span style="cursor:pointer;" class="bookmark-btn" id="bookmarkBtn-${tweetId}">
+                      ${isBookmarked ? `<img src="image/bookmark-filled.svg">` : `<img src="image/bookmark.svg">`}
+                    </span>
+                    ${auth.currentUser.uid === t.uid ? `<span style="cursor:pointer;margin-left:5px" class="delete-btn" data-id="${tweetId}"><img src="image/trash.svg"></span>` : ""}
+                    <span style="margin-left:10px"><img src="image/chart.svg"> ${viewCount}</span>
+                  </div>
+                </div>
+              </div>
+              `;
 
   const existing = document.getElementById("tweet-" + tweetId);
   const tweetEl = document.getElementById("tweet-" + tweetId);
@@ -876,7 +952,7 @@ document.body.addEventListener("click", async (e) => {
   const tweetId = deleteBtn.dataset.id;
   const userId = auth.currentUser.uid;
 
-  if (!confirm("Are you sure you want to delete this wint?")) return;
+  if (!confirm("Are you sure you want to delete this wynt?")) return;
 
   const tweetRef = doc(db, "tweets", tweetId);
   const tweetSnap = await getDoc(tweetRef);
@@ -884,33 +960,24 @@ document.body.addEventListener("click", async (e) => {
   if (!tweetSnap.exists()) return;
   const data = tweetSnap.data();
 
-  // 1️⃣ Delete subcollections first
   await deleteSubcollectionDocs(tweetId, "comments");
   await deleteSubcollectionDocs(tweetId, "likes");
   await deleteSubcollectionDocs(tweetId, "views");
 
-  // 2️⃣ Delete tags
   for (const tag of data.tags || []) {
     await deleteDoc(doc(db, "tags", tag, "tweets", tweetId));
   }
 
-  // 3️⃣ Delete mentions
   for (const uid of data.mentions || []) {
     await deleteDoc(doc(db, "users", uid, "mentioned", tweetId));
   }
 
-  // 4️⃣ Delete tweet document itself
   await deleteDoc(tweetRef);
-
-  // 5️⃣ Delete from user posts
   await deleteDoc(doc(db, "users", userId, "posts", tweetId));
-
-  // 6️⃣ Decrement post counter
   await updateDoc(doc(db, "users", userId), {
     posts: increment(-1)
   });
 
-  // 7️⃣ Remove from DOM
   const el = document.getElementById("tweet-" + tweetId);
   if (el) el.remove();
 });
@@ -959,28 +1026,28 @@ async function loadTweets(initial = false, direction = "down", count = 15) {
     loadingScreen.style.display = "flex";
     loadingScreen.style.opacity = "1";
     document.body.classList.add("no-scroll");
-    if (logEl) logEl.innerHTML = `<div class="loader"></div> rendering wints...`;
+    if (logEl) logEl.innerHTML = `<div class="loader"></div> rendering Wynts...`;
   }
 
   const tweetsRef = collection(db, "tweets");
 
   let mostLikedQuery, newestQuery;
   if (direction === "down") {
-    mostLikedQuery = newestSnapshotMostLiked
-      ? query(tweetsRef, orderBy("likeCount", "desc"), startAfter(newestSnapshotMostLiked), limit(count))
-      : query(tweetsRef, orderBy("likeCount", "desc"), limit(count));
+    mostLikedQuery = newestSnapshotMostLiked ?
+      query(tweetsRef, orderBy("likeCount", "desc"), startAfter(newestSnapshotMostLiked), limit(count)) :
+      query(tweetsRef, orderBy("likeCount", "desc"), limit(count));
 
-    newestQuery = newestSnapshotNewest
-      ? query(tweetsRef, orderBy("createdAt", "desc"), startAfter(newestSnapshotNewest), limit(count))
-      : query(tweetsRef, orderBy("createdAt", "desc"), limit(count));
+    newestQuery = newestSnapshotNewest ?
+      query(tweetsRef, orderBy("createdAt", "desc"), startAfter(newestSnapshotNewest), limit(count)) :
+      query(tweetsRef, orderBy("createdAt", "desc"), limit(count));
   } else {
-    mostLikedQuery = oldestSnapshotMostLiked
-      ? query(tweetsRef, orderBy("likeCount", "asc"), startAfter(oldestSnapshotMostLiked), limit(count))
-      : query(tweetsRef, orderBy("likeCount", "asc"), limit(count));
+    mostLikedQuery = oldestSnapshotMostLiked ?
+      query(tweetsRef, orderBy("likeCount", "asc"), startAfter(oldestSnapshotMostLiked), limit(count)) :
+      query(tweetsRef, orderBy("likeCount", "asc"), limit(count));
 
-    newestQuery = oldestSnapshotNewest
-      ? query(tweetsRef, orderBy("createdAt", "asc"), startAfter(oldestSnapshotNewest), limit(count))
-      : query(tweetsRef, orderBy("createdAt", "asc"), limit(count));
+    newestQuery = oldestSnapshotNewest ?
+      query(tweetsRef, orderBy("createdAt", "asc"), startAfter(oldestSnapshotNewest), limit(count)) :
+      query(tweetsRef, orderBy("createdAt", "asc"), limit(count));
   }
 
   const [mostLikedSnap, newestSnap] = await Promise.all([
@@ -1011,7 +1078,6 @@ async function loadTweets(initial = false, direction = "down", count = 15) {
       usedIds.add(newestDocs[i].id);
     }
   }
-
   if (direction === "down") {
     mixed.forEach((docSnap) => {
       renderTweet(docSnap.data(), docSnap.id, auth.currentUser, "append");
@@ -1044,10 +1110,8 @@ async function loadTweets(initial = false, direction = "down", count = 15) {
       }
     }
   }
-
   loadingMore = false;
 }
-
 window.addEventListener("scroll", async () => {
   const tweets = document.querySelectorAll(".tweet");
   if (loadingMore) return;
@@ -1056,7 +1120,6 @@ window.addEventListener("scroll", async () => {
   if (lastTweet && lastTweet.getBoundingClientRect().top < window.innerHeight) {
     await loadTweets(false, "down", 15);
   }
-
   const firstTweet = tweets[0];
   if (firstTweet && window.scrollY === 0 && topRemovedCount > 0) {
     await loadTweets(false, "up", REMOVE_BATCH);
@@ -1099,87 +1162,105 @@ document.body.addEventListener("click", async (e) => {
       if (isVideo) {
         mediaHTML = containsSpoiler ?
           `
-  <div class="attachment spoiler-media" onclick="this.classList.add('revealed')">
-    <div class="spoiler-overlay"><div class="spoilertxt">spoiler</div></div>
-    <video style="max-width: 100%; max-height: 300px;" muted controls>
-      <source src="${mediaSrc}">
-    </video>
-  </div>` :
+                    <div class="attachment spoiler-media" onclick="this.classList.add('revealed')">
+                      <div class="spoiler-overlay">
+                        <div class="spoilertxt">spoiler</div>
+                      </div>
+                      <video style="max-width: 100%; max-height: 300px;" muted controls>
+                        <source src="${mediaSrc}">
+                      </video>
+                    </div>` :
           `
-  <div class="attachment">
-    <video controls style="max-width: 100%; max-height: 300px;">
-      <source src="${mediaSrc}">
-    </video>
-  </div>`;
+                    <div class="attachment">
+                      <video controls style="max-width: 100%; max-height: 300px;">
+                        <source src="${mediaSrc}">
+                      </video>
+                    </div>`;
       } else {
         mediaHTML = containsSpoiler ?
           `
-  <div class="attachment spoiler-media" onclick="this.classList.add('revealed')">
-    <div class="spoiler-overlay"><div class="spoilertxt">spoiler</div></div>
-    <img src="${mediaSrc}" style="max-width: 100%; max-height: 300px; border-radius: 15px;" alt="image" />
-  </div>` :
+                    <div class="attachment spoiler-media" onclick="this.classList.add('revealed')">
+                      <div class="spoiler-overlay">
+                        <div class="spoilertxt">spoiler</div>
+                      </div>
+                      <img src="${mediaSrc}" style="max-width: 100%; max-height: 300px; border-radius: 15px;" alt="image" />
+                    </div>` :
           `
-  <div class="attachment">
-    <img src="${mediaSrc}" style="max-width: 100%; max-height: 300px; border-radius: 15px;" alt="image" />
-  </div>`;
+                    <div class="attachment">
+                      <img src="${mediaSrc}" style="max-width: 100%; max-height: 300px; border-radius: 15px;" alt="image" />
+                    </div>`;
       }
     }
 
     document.getElementById("commentTweet").innerHTML = `
-    <p>${linkify(tweetText)}</p>
-    ${mediaHTML}
-  `;
+                    <p>${linkify(tweetText)}</p>
+                    ${mediaHTML}
+                    `;
 
     applyReadMoreLogic(commentTweet);
 
-document.getElementById("sendComment").onclick = async () => {
-  const sendBtn = document.getElementById("sendComment");
-  sendBtn.disabled = true; // Disable button right away
-  sendBtn.classList.add('disabled');
+    document.getElementById("sendComment").onclick = async () => {
+      const sendBtn = document.getElementById("sendComment");
+      sendBtn.disabled = true;
+      sendBtn.classList.add("disabled");
 
-  try {
-    const commentText = document.getElementById("commentInput").value.trim();
-    const file = document.querySelector(".comment-media-input").files[0];
-    const user = auth.currentUser;
-    let media = "",
-        mediaType = "";
+      try {
+        const commentInput = document.getElementById("commentInput");
+        const commentText = commentInput.value.trim();
+        const fileInput = document.querySelector(".comment-media-input");
+        const file = fileInput.files[0];
+        const user = auth.currentUser;
+        let media = "",
+          mediaType = "";
 
-    if (file) {
-      mediaType = "image";
-      media = await resizeImage(file);
-      if (media.length > 1048487) {
-        alert("Image is too large.");
-        sendBtn.disabled = false; // Re-enable if there's an error
-        sendBtn.classList.remove('disabled');
-        return;
+        if (file) {
+          mediaType = "image";
+          media = await resizeImage(file);
+          if (media.length > 1048487) {
+            alert("Image is too large.");
+            sendBtn.disabled = false;
+            sendBtn.classList.remove("disabled");
+            return;
+          }
+        }
+
+        if (commentText || media) {
+          const mentionsRaw = await extractMentions(commentText);
+          const mentions = mentionsRaw.map(m => m.uid);
+
+          await addDoc(collection(db, "tweets", tweetId, "comments"), {
+            text: commentText,
+            media,
+            mediaType,
+            uid: user.uid,
+            likeCount: 0,
+            createdAt: new Date(),
+            ...(mentions.length > 0 && {
+              mentions
+            })
+          });
+
+          await Promise.all(
+            mentions.map(uid =>
+              sendCommentMentionNotification(tweetId, uid, commentText)
+            )
+          );
+
+          await sendCommentNotification(tweetId, commentText);
+
+          commentInput.value = "";
+          fileInput.value = "";
+
+          await loadComments(tweetId);
+        }
+      } catch (err) {
+        console.error("Error sending comment:", err);
+      } finally {
+        sendBtn.disabled = false;
+        sendBtn.classList.remove("disabled");
       }
-    }
-
-    if (commentText || media) {
-      await addDoc(collection(db, "tweets", tweetId, "comments"), {
-        text: commentText,
-        media,
-        mediaType,
-        uid: user.uid,
-        likeCount: 0,
-        createdAt: new Date()
-      });
-
-      document.getElementById("commentInput").value = "";
-      document.querySelector(".comment-media-input").value = "";
-      document.getElementById("commentPreview").innerHTML = "";
-      loadComments(tweetId);
-
-      await sendCommentNotification(tweetId, commentText);
-    }
-  } catch (err) {
-    console.error("Error sending comment:", err);
-  } finally {
-    sendBtn.disabled = false; // Always re-enable after sending
-    sendBtn.classList.remove('disabled');
-  }
-};
-    loadComments(tweetId);
+    };
+    await loadComments(tweetId);
   }
 
   const bookmarkBtn = e.target.closest(".bookmark-btn");
@@ -1307,9 +1388,9 @@ async function loadComments(tweetId) {
     }
 
     const replyButtonHTML = `
-      <button class="toggle-replies-btn link" data-id="${commentId}" data-tweet="${tweetId}" data-open="false">
-        ${replyCount > 0 ? `View replies (${replyCount})` : "Reply"}
-      </button>`;
+                    <button class="toggle-replies-btn link" data-id="${commentId}" data-tweet="${tweetId}" data-open="false">
+                      ${replyCount > 0 ? `View replies (${replyCount})` : "Reply"}
+                    </button>`;
 
     const commentHTML = document.createElement("div");
     commentHTML.className = "comment-item";
@@ -1330,47 +1411,51 @@ async function loadComments(tweetId) {
     const likedByCreator = creatorLikeSnap.exists();
 
     commentHTML.innerHTML = `
-      <div class="flex" id="pinned" style="gap:3px;display:none;">
-      <img src="image/pin.svg" style="width:22px;height:22px;">
-      <p style="color:grey;margin:0;font-size:13px;">pinned by the creator</p>
-      </div>
-      <div class="flex comment-header" style="gap:10px">
-        <img src="${escapeHTML(avatar)}" onerror="this.src='image/default-avatar.jpg'" class="avatar comment-avatar">
-        <strong class="user-link" data-uid="${d.uid}" style="cursor:pointer">${escapeHTML(displayName)}</strong>
-        <span class="comment-date">${formatDate(d.createdAt)}</span>
-      </div>
-      <div class="comment-body">
-        <p class="no-margin">${linkify(d.text)}</p>
-        ${d.media && d.mediaType === "image" ? `<img src="${d.media}" class="attachment1" style="max-width:100%;max-height:200px;margin-bottom:5px;border-radius:8px">` : ""}
-        <div class="flex">
-          <span class="comment-like-btn" data-id="${commentId}" data-tweet="${tweetId}" style="cursor:pointer">
-            ${isCommentLiked ? `<img src="image/filled-heart.svg">` : `<img src="image/heart.svg">`}
-            <span id="comment-like-count-${commentId}">${commentLikeCount}</span>
-          </span>
-          ${auth.currentUser.uid === d.uid ? `
-            <span class="comment-delete-btn" data-id="${commentId}" data-tweet="${tweetId}" style="cursor:pointer;margin-left:auto;"><img src="image/trash.svg"></span>` : ""}
-        </div>
-            ${likedByCreator ? `
-    <p style="font-size:13px;color:#f91880;margin:0;margin-top:8px;">liked by the creator</p>` : ""}
-        <div class="reply-actions">${replyButtonHTML}</div>
-        <div class="flex pin-comment-btn" style="display:none; width: 100%;">
-  <button style="margin-left:auto; cursor:pointer; background:none; border:none; color:gray; font-size:13px;">
-    pin comment
-  </button>
-</div>
-        <div class="reply-box hidden" id="reply-box-${commentId}">
-          <textarea class="reply-text" placeholder="thoughts...?"></textarea>
-          <div class="attachment" id="replyPreview-${commentId}"></div>
-          <div class="flex">
-            <button class="send-reply-btn" data-id="${commentId}">Post</button>
-            <input type="file" id="replyMedia-${commentId}" class="comment-media-input hidden-input" accept="image/*" />
-            <label class="custom-file-btn" for="replyMedia-${commentId}"><img src="image/upload.svg"></label>
-            <button style="margin-left:auto" class="cancel-reply-btn no-bg">Cancel</button>
-          </div>
-          <div class="reply-list" id="replies-${commentId}"></div>
-        </div>
-      </div>
-    `;
+                    <div class="flex" id="pinned" style="gap:3px;display:none;">
+                      <img src="image/pin.svg" style="width:22px;height:22px;">
+                      <p style="color:grey;margin:0;font-size:13px;">pinned by the creator</p>
+                    </div>
+                    <div class="flex comment-header" style="gap:10px">
+                      <img src="${escapeHTML(avatar)}" onerror="this.src='image/default-avatar.jpg'" class="avatar comment-avatar">
+                      <div class="user-link" data-uid="${d.uid}" style="cursor:pointer; ${d.uid === tweetOwnerId ? 'background-color:#0058cc; padding:2px 5px; border-radius:15px; font-size:13px; color: white;' : ''}">
+                        @${escapeHTML(displayName)}
+                      </div>
+                      <span class="comment-date">${formatDate(d.createdAt)}</span>
+                    </div>
+                    <div class="comment-body">
+                      <div class="flex">
+                        <p class="no-margin">${await parseMentionsToLinks(d.text)}</p>
+                        <span class="comment-like-btn" data-id="${commentId}" data-tweet="${tweetId}" style="cursor:pointer;margin-left:auto;display:flex;align-items:center;gap:3px;">
+                          ${isCommentLiked ? `<img src="image/filled-heart.svg" style="width:16px;height:16px;">` : `<img src="image/heart.svg" style="width:16px;height:16px;">`}
+                          <span id="comment-like-count-${commentId}">${commentLikeCount}</span>
+                        </span>
+                        ${auth.currentUser.uid === d.uid ? `
+                        <span class="comment-delete-btn" data-id="${commentId}" data-tweet="${tweetId}" style="cursor:pointer;"><img src="image/trash.svg"></span>` : ""}
+                      </div>
+                      ${d.media && d.mediaType === "image" ? `<img src="${d.media}" class="attachment1" style="max-width:100%;max-height:200px;margin-bottom:5px;border-radius:8px">` : ""}
+                      <div class="flex" style="width:fit-content;margin:0;gap:11px;">
+                        <div class="reply-actions">${replyButtonHTML}</div>
+                        ${likedByCreator ? `
+                        <div style="color:#f91880;font-size:14px;">liked by the creator</div>` : ""}
+                        <div class="pin-comment-btn" style="display:none;">
+                          <button style="margin-left:auto; cursor:pointer; background:none; border:none; color:gray; font-size:13px;">
+                            pin
+                          </button>
+                        </div>
+                      </div>
+                      <div class="reply-box hidden" id="reply-box-${commentId}">
+                        <textarea class="reply-text" placeholder="thoughts...?"></textarea>
+                        <div class="attachment" id="replyPreview-${commentId}"></div>
+                        <div class="flex">
+                          <button class="send-reply-btn" data-id="${commentId}">Post</button>
+                          <input type="file" id="replyMedia-${commentId}" class="comment-media-input hidden-input" accept="image/*" />
+                          <label class="custom-file-btn" for="replyMedia-${commentId}"><img src="image/upload.svg"></label>
+                          <button style="margin-left:auto" class="cancel-reply-btn no-bg">Cancel</button>
+                        </div>
+                        <div class="reply-list" id="replies-${commentId}"></div>
+                      </div>
+                    </div>
+                    `;
 
     if (!canComment && !isOwner) {
       const inputBox = document.querySelector("#commentInput");
@@ -1400,7 +1485,7 @@ async function loadComments(tweetId) {
       const pinBtnContainer = commentHTML.querySelector(".pin-comment-btn");
       const pinBtn = pinBtnContainer.querySelector("button");
 
-      pinBtn.textContent = isPinned ? "unpin comment" : "pin comment";
+      pinBtn.textContent = isPinned ? "unpin" : "pin";
 
       pinBtn.onclick = async () => {
         await updateDoc(doc(db, "tweets", tweetId), {
@@ -1427,14 +1512,14 @@ async function loadComments(tweetId) {
     repliesSnap.forEach(rSnap => {
       const r = rSnap.data();
       replyContainer.innerHTML += `
-        <div>
-          <div class="flex comment-header" style="gap:10px">
-            <img src="${r.photoURL}" class="avatar comment-avatar">
-            <strong>${r.name}</strong>
-          </div>
-          <p>${linkify(r.text)}</p>
-        </div>
-      `;
+                    <div>
+                      <div class="flex comment-header" style="gap:10px">
+                        <img src="${r.photoURL}" class="avatar comment-avatar">
+                        <strong>${r.name}</strong>
+                      </div>
+                      <p>${linkify(r.text)}</p>
+                    </div>
+                    `;
     });
 
     applyReadMoreLogic(commentHTML);
@@ -1488,76 +1573,82 @@ document.body.addEventListener("click", async (e) => {
       replyBox.classList.add("hidden");
     }
   }
-
-const sendReplyBtn = e.target.closest(".send-reply-btn");
-if (sendReplyBtn) {
-  sendReplyBtn.disabled = true; // disable immediately
-  sendReplyBtn.classList.add('disabled');
-
-  try {
-    const commentId = e.target.dataset.id;
-    const box = e.target.closest(".reply-box");
-    const textarea = box.querySelector(".reply-text");
-    const file = box.querySelector(".comment-media-input")?.files[0];
-    const text = textarea.value.trim();
-    const tweetId = box.closest(".comment-item").querySelector(".comment-like-btn")?.dataset.tweet;
-
-    const uid = auth.currentUser.uid;
-    const user = auth.currentUser;
-    const userDoc = await getDoc(doc(db, "users", uid));
-    const profile = userDoc.exists() ? userDoc.data() : {};
-
-    const originalCommenterId = box.closest(".comment-item")?.dataset.uid;
-    const originalCommentText = box.closest(".comment-item")?.dataset.text || "";
-
-    let media = "",
+  const sendReplyBtn = e.target.closest(".send-reply-btn");
+  if (sendReplyBtn) {
+    sendReplyBtn.disabled = true;
+    sendReplyBtn.classList.add('disabled');
+    try {
+      const commentId = e.target.dataset.id;
+      const box = e.target.closest(".reply-box");
+      const textarea = box.querySelector(".reply-text");
+      const file = box.querySelector(".comment-media-input")?.files[0];
+      const text = textarea.value.trim();
+      const tweetId = box.closest(".comment-item").querySelector(".comment-like-btn")?.dataset.tweet;
+      const uid = auth.currentUser.uid;
+      const user = auth.currentUser;
+      const userDoc = await getDoc(doc(db, "users", uid));
+      const profile = userDoc.exists() ? userDoc.data() : {};
+      const originalCommenterId = box.closest(".comment-item")?.dataset.uid;
+      const originalCommentText = box.closest(".comment-item")?.dataset.text || "";
+      let media = "",
         mediaType = "";
+      if (file) {
+        mediaType = "image";
+        media = await resizeImage(file);
+        if (media.length > 1048487) {
+          alert("Image is too large.");
+          sendReplyBtn.disabled = false;
+          sendReplyBtn.classList.remove('disabled');
+          return;
+        }
+      }
 
-    if (file) {
-      mediaType = "image";
-      media = await resizeImage(file);
-      if (media.length > 1048487) {
-        alert("Image is too large.");
-        sendReplyBtn.disabled = false; // re-enable on error
+      if (!text && !media) {
+        sendReplyBtn.disabled = false;
         sendReplyBtn.classList.remove('disabled');
         return;
       }
-    }
 
-    if (!text && !media) {
-      sendReplyBtn.disabled = false; // re-enable if nothing to send
+      const mentionsRaw = await extractMentions(text);
+      const mentions = mentionsRaw.map(m => m.uid);
+
+      await addDoc(collection(db, "tweets", tweetId, "comments", commentId, "replies"), {
+        text,
+        media,
+        mediaType,
+        uid: user.uid,
+        createdAt: new Date(),
+        ...(mentions.length > 0 && {
+          mentions
+        })
+      });
+
+      await Promise.all(
+        mentions.map(uid =>
+          sendReplyMentionNotification(tweetId, commentId, uid, text)
+        )
+      );
+
+      await sendReplyNotification(tweetId, commentId, text, originalCommenterId, originalCommentText);
+
+      textarea.value = "";
+      if (box.querySelector(".comment-media-input")) {
+        box.querySelector(".comment-media-input").value = "";
+      }
+      const preview = document.getElementById(`replyPreview-${commentId}`);
+      if (preview) preview.innerHTML = "";
+
+      loadedReplies[commentId] = 0;
+      document.getElementById("replies-" + commentId).innerHTML = "";
+      await loadReplies(tweetId, commentId);
+
+    } catch (err) {
+      console.error("Error sending reply:", err);
+    } finally {
+      sendReplyBtn.disabled = false;
       sendReplyBtn.classList.remove('disabled');
-      return;
     }
-
-    await addDoc(collection(db, "tweets", tweetId, "comments", commentId, "replies"), {
-      text,
-      media,
-      mediaType,
-      uid: user.uid,
-      createdAt: new Date()
-    });
-
-    await sendReplyNotification(tweetId, commentId, text, originalCommenterId, originalCommentText);
-
-    textarea.value = "";
-    if (box.querySelector(".comment-media-input")) {
-      box.querySelector(".comment-media-input").value = "";
-    }
-    const preview = document.getElementById(`replyPreview-${commentId}`);
-    if (preview) preview.innerHTML = "";
-
-    loadedReplies[commentId] = 0;
-    document.getElementById("replies-" + commentId).innerHTML = "";
-    await loadReplies(tweetId, commentId);
-
-  } catch (err) {
-    console.error("Error sending reply:", err);
-  } finally {
-    sendReplyBtn.disabled = false; // always re-enable
-    sendReplyBtn.classList.remove('disabled');
   }
-}
 
   const cancelReplyBtn = e.target.closest(".cancel-reply-btn");
   if (cancelReplyBtn) {
@@ -1566,25 +1657,18 @@ if (sendReplyBtn) {
     const toggleBtn = box.parentElement.querySelector(".toggle-replies-btn");
     toggleBtn.dataset.open = "false";
     const replyCount = box.querySelector(".reply-list").childElementCount;
-    toggleBtn.textContent = replyCount < 1 ? "Reply" : `View replies (${replyCount})`;
+    toggleBtn.textContent = replyCount <
+      1 ? "Reply" : `View replies (${replyCount})`;
   }
-
   const loadMoreReplies = e.target.closest(".load-more-replies");
   if (loadMoreReplies) {
     const commentId = e.target.dataset.id;
     const tweetId = e.target.dataset.tweet;
     await loadReplies(tweetId, commentId);
   }
-
   const overlay = document.querySelector(".mediaOverlay");
   const overlayContent = document.getElementById("overlayContent");
-
-  if (e.target.tagName === "IMG" && (
-      e.target.closest(".attachment") ||
-      e.target.closest(".attachment1") ||
-      e.target.closest(".rt-attachment") ||
-      e.target.closest(".attachment2")
-    )) {
+  if (e.target.tagName === "IMG" && (e.target.closest(".attachment") || e.target.closest(".attachment1") || e.target.closest(".rt-attachment") || e.target.closest(".attachment2"))) {
     overlay.classList.remove("hidden");
     overlayContent.innerHTML = `<img src="${e.target.src}" />`;
   }
@@ -1594,8 +1678,8 @@ if (sendReplyBtn) {
     if (video && video.src) {
       overlay.classList.remove("hidden");
       overlayContent.innerHTML = `
-        <video src="${video.src}" controls autoplay style="max-width: 90%; max-height: 90%;"></video>
-      `;
+                      <video src="${video.src}" controls autoplay style="max-width: 90%; max-height: 90%;"></video>
+                      `;
     }
   }
 
@@ -1612,10 +1696,13 @@ async function loadReplies(tweetId, commentId) {
 
   const repliesQ = query(
     collection(db, "tweets", tweetId, "comments", commentId, "replies"),
-    orderBy("createdAt")
+    orderBy("createdAt", "asc")
   );
   const allReplies = await getDocs(repliesQ);
   const replyDocs = allReplies.docs.slice(offset, offset + REPLY_PAGE_SIZE);
+
+  const tweetDoc = await getDoc(doc(db, "tweets", tweetId));
+  const tweetOwnerId = tweetDoc.exists() ? tweetDoc.data().uid : null;
 
   for (const rDoc of replyDocs) {
     const r = rDoc.data();
@@ -1664,22 +1751,24 @@ async function loadReplies(tweetId, commentId) {
     const replylikeCount = replylikeCountSnap.data().count;
 
     replyList.innerHTML += `
-      <div class="reply-block">
-        <div class="flex comment-header" style="gap:10px">
-          <img src="${escapeHTML(avatar)}" onerror="this.src='image/default-avatar.jpg'" class="avatar comment-avatar">
-          <strong class="user-link" data-uid="${r.uid}" style="cursor:pointer">${escapeHTML(displayName)}</strong>
-          <span class="reply-date">${formatDate(r.createdAt)}</span>
-        </div>
-        <p class="little-margin">${linkify(r.text)}</p>
-${r.media && r.mediaType === "image" ? `<img src="${r.media}" class="attachment1" style="max-width:100%;max-height:200px;margin-bottom:5px;border-radius:8px">` : ""}
-        <div class="flex">
-        <span class="reply-like-btn" data-reply="${rId}" data-comment="${commentId}" data-tweet="${tweetId}" style="cursor:pointer">
-  ${replyisLiked ? `<img src="image/filled-heart.svg">` : `<img src="image/heart.svg">`} <span id="reply-like-count-${rId}">${replylikeCount}</span></span>
-      ${auth.currentUser.uid === r.uid ? `<span class="reply-delete-btn" data-comment="${commentId}" data-reply="${rId}" data-tweet="${tweetId}" style="cursor:pointer;margin-left:auto;"><img src="image/trash.svg"></span>
-` : ""}
-      </div>
-</div>
-    `;
+                      <div class="reply-block">
+                        <div class="flex comment-header" style="gap:10px">
+                          <img src="${escapeHTML(avatar)}" onerror="this.src='image/default-avatar.jpg'" class="avatar comment-avatar">
+                          <div class="user-link" data-uid="${r.uid}" style="cursor:pointer; ${r.uid === tweetOwnerId ? 'background-color:#0058cc; padding:2px 5px; border-radius:15px; font-size:13px; color:white;' : ''}">
+                            @${escapeHTML(displayName)}
+                          </div>
+                          <span class="reply-date">${formatDate(r.createdAt)}</span>
+                        </div>
+                        <p class="little-margin">${await parseMentionsToLinks(r.text)}</p>
+                        ${r.media && r.mediaType === "image" ? `<img src="${r.media}" class="attachment1" style="max-width:100%;max-height:200px;margin-bottom:5px;border-radius:8px">` : ""}
+                        <div class="flex">
+                          <span class="reply-like-btn" data-reply="${rId}" data-comment="${commentId}" data-tweet="${tweetId}" style="cursor:pointer">
+                            ${replyisLiked ? `<img src="image/filled-heart.svg">` : `<img src="image/heart.svg">`} <span id="reply-like-count-${rId}">${replylikeCount}</span></span>
+                          ${auth.currentUser.uid === r.uid ? `<span class="reply-delete-btn" data-comment="${commentId}" data-reply="${rId}" data-tweet="${tweetId}" style="cursor:pointer;margin-left:auto;"><img src="image/trash.svg"></span>
+                          ` : ""}
+                        </div>
+                      </div>
+                      `;
   }
 
   loadedReplies[commentId] = offset + replyDocs.length;
@@ -1846,11 +1935,11 @@ document.body.addEventListener("click", async (e) => {
     retweetMediaHTML = `<div class="attachment"><img src="${t.media}" style="max-width: 100%; max-height: 300px" alt="tweet image" /></div>`;
   } else if (t.media && t.mediaType === "video") {
     retweetMediaHTML = `
-      <div class="attachment">
-        <video controls style="max-width: 100%; max-height: 300px">
-          <source src="${t.media}" type="video/mp4" />
-        </video>
-      </div>`;
+                      <div class="attachment">
+                        <video controls style="max-width: 100%; max-height: 300px">
+                          <source src="${t.media}" type="video/mp4" />
+                        </video>
+                      </div>`;
   }
 
   let displayName = t.displayName;
@@ -1868,16 +1957,16 @@ document.body.addEventListener("click", async (e) => {
   }
 
   document.getElementById("retweetOriginal").innerHTML = `
-    <div class="tweet retweet">
-      <div class="flex" style="gap:10px">
-        <img class="avatar" src="${avatar}" onerror="this.src='image/default-avatar.jpg'" width="30">
-        <strong class="user-link" data-uid="${t.uid}" style="cursor:pointer;font-size:17px">${escapeHTML(displayName)}</strong>
-        <span style="color:grey;font-size:13px">${dateStr}</span>
-      </div>
-      <p>${linkify(t.text)}</p>
-      ${retweetMediaHTML}
-    </div>
-  `;
+                      <div class="tweet retweet">
+                        <div class="flex" style="gap:10px">
+                          <img class="avatar" src="${avatar}" onerror="this.src='image/default-avatar.jpg'" width="30">
+                          <strong class="user-link" data-uid="${t.uid}" style="cursor:pointer;font-size:17px">${escapeHTML(displayName)}</strong>
+                          <span style="color:grey;font-size:13px">${dateStr}</span>
+                        </div>
+                        <p>${linkify(t.text)}</p>
+                        ${retweetMediaHTML}
+                      </div>
+                      `;
 
   document.getElementById("retweetOverlay").classList.remove("hidden");
   applyReadMoreLogic(document.getElementById("retweetOriginal"));
@@ -1886,21 +1975,51 @@ document.body.addEventListener("click", async (e) => {
   viewer?.classList.add('hidden');
 });
 
-document.getElementById("sendRetweet").onclick = async () => {
+const sendRetweet = document.getElementById("sendRetweet");
+
+sendRetweet.onclick = async () => {
+  sendRetweet.disabled = true;
+  sendRetweet.classList.add('disabled');
+
   const text = document.getElementById("retweetText").value.trim();
   const originalId = selectedRetweet;
-  const file = document.getElementById("retweetMedia-TWEETID").files[0];
+  const fileInput = document.getElementById("retweetMedia-TWEETID");
+  const file = fileInput.files[0];
 
   const user = auth.currentUser;
   const uid = user?.uid;
   if (!uid || !originalId) return;
+
+  const userRef = doc(db, "users", uid);
+  const userSnap = await getDoc(userRef);
+  if (userSnap.exists()) {
+    const data = userSnap.data();
+    if (data.cooldown?.toDate) {
+      const now = new Date();
+      const cooldownTime = data.cooldown.toDate();
+      if (now < cooldownTime) {
+        const diffMs = cooldownTime - now;
+        const diffMins = Math.ceil(diffMs / 60000);
+        alert(`Cooldown resets in ${diffMins} minute${diffMins> 1 ? 's' : ''}`);
+        sendRetweet.disabled = false;
+        sendRetweet.classList.remove('disabled');
+        return;
+      }
+    }
+  }
+
+  if (file && file.size > 3 * 1024 * 1024) {
+    alert("File size exceeds 3MB. Please choose a smaller file.");
+    sendRetweet.disabled = false;
+    sendRetweet.classList.remove('disabled');
+    return;
+  }
 
   let media = "";
   let mediaType = "";
 
   try {
     if (file) {
-
       const upload = await uploadToSupabase(file, uid);
       media = upload.url;
       mediaType = upload.type;
@@ -1940,12 +2059,13 @@ document.getElementById("sendRetweet").onclick = async () => {
     await setDoc(doc(db, "users", uid, "posts", tweetRef.id), {
       exists: true
     });
-    await updateDoc(doc(db, "users", auth.currentUser.uid), {
-      posts: increment(1)
+    await updateDoc(userRef, {
+      posts: increment(1),
+      cooldown: new Date(Date.now() + 15 * 60 * 1000)
     });
 
     document.getElementById("retweetText").value = "";
-    document.getElementById("retweetMedia-TWEETID").value = "";
+    fileInput.value = "";
     document.getElementById("retweetPreview-TWEETID").innerHTML = "";
     document.getElementById("retweetOverlay").classList.add("hidden");
 
@@ -1956,6 +2076,9 @@ document.getElementById("sendRetweet").onclick = async () => {
       console.error("❌ Retweet failed:", error);
     }
   }
+
+  sendRetweet.disabled = false;
+  sendRetweet.classList.remove('disabled');
 };
 
 document.body.addEventListener("change", (e) => {
@@ -1969,11 +2092,86 @@ document.getElementById("commentMediaInput").addEventListener("change", () => {
   showImagePreview(document.getElementById("commentMediaInput"), "commentPreview");
 });
 
-document.getElementById("mediaInput")
-  .addEventListener("change", () => showImagePreview(document.getElementById("mediaInput"), "tweetPreview"));
+const mediaInput = document.getElementById('mediaInput');
+const attachment = document.getElementById('tweetPreview');
 
-document.getElementById("retweetMedia-TWEETID")
-  .addEventListener("change", () => showImagePreview(document.getElementById("retweetMedia-TWEETID"), "retweetPreview-TWEETID"));
+document.getElementById('mediaInput').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  attachment.innerHTML = '';
+  attachment.style.position = 'relative';
+  attachment.style.marginBottom = '20px';
+
+  if (file) {
+    const maxSize = 3 * 1024 * 1024;
+    const sizeInMB = (file.size / (1024 * 1024)).toFixed(2);
+
+    const sizeCounter = document.createElement('div');
+    sizeCounter.style.position = 'absolute';
+    sizeCounter.style.top = '10px';
+    sizeCounter.style.left = '10px';
+    sizeCounter.style.background = 'rgba(0,0,0,0.6)';
+    sizeCounter.style.color = 'white';
+    sizeCounter.style.padding = '2px 6px';
+    sizeCounter.style.borderRadius = '4px';
+    sizeCounter.style.fontSize = '12px';
+    sizeCounter.style.zIndex = '10';
+    sizeCounter.textContent = `${sizeInMB} MB`;
+
+    if (file.size > maxSize) {
+      sizeCounter.style.background = '#db1d23';
+      attachment.appendChild(sizeCounter);
+    }
+
+    attachment.appendChild(sizeCounter);
+
+    const preview = document.createElement(file.type.startsWith('video') ? 'video' : 'img');
+    preview.src = URL.createObjectURL(file);
+    preview.style.maxWidth = '100%';
+    preview.style.maxHeight = '333px';
+    preview.controls = file.type.startsWith('video');
+    attachment.appendChild(preview);
+  }
+});
+
+const mediaInput1 = document.getElementById('retweetMedia-TWEETID');
+const attachment1 = document.getElementById('retweetPreview-TWEETID');
+
+mediaInput1.addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  attachment1.innerHTML = '';
+  attachment1.style.position = 'relative';
+  attachment1.style.marginBottom = '20px';
+
+  if (file) {
+    const maxSize = 3 * 1024 * 1024;
+    const sizeInMB = (file.size / (1024 * 1024)).toFixed(2);
+    const sizeCounter = document.createElement('div');
+    sizeCounter.style.position = 'absolute';
+    sizeCounter.style.top = '10px';
+    sizeCounter.style.left = '10px';
+    sizeCounter.style.background = 'rgba(0,0,0,0.6)';
+    sizeCounter.style.color = 'white';
+    sizeCounter.style.padding = '2px 6px';
+    sizeCounter.style.borderRadius = '4px';
+    sizeCounter.style.fontSize = '12px';
+    sizeCounter.style.zIndex = '10';
+    sizeCounter.textContent = `${sizeInMB} MB`;
+
+    if (file.size > maxSize) {
+      sizeCounter.style.background = '#db1d23';
+      attachment1.appendChild(sizeCounter);
+    }
+
+    attachment1.appendChild(sizeCounter);
+
+    const preview = document.createElement(file.type.startsWith('video') ? 'video' : 'img');
+    preview.src = URL.createObjectURL(file);
+    preview.style.maxWidth = '100%';
+    preview.style.maxHeight = '333px';
+    preview.controls = file.type.startsWith('video');
+    attachment1.appendChild(preview);
+  }
+});
 
 document.body.addEventListener("click", async (e) => {
   const userLink = e.target.closest(".user-link");
