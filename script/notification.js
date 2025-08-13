@@ -41,32 +41,34 @@ function createNotificationElement(notification) {
 
   let content = "";
   const hasText = notification.tweetText?.trim().length > 0;
-
-  const tweetPreview = hasText ?
-    `"${textClamp(notification.tweetText)}"` :
-    "";
+  const tweetPreview = hasText ? `"${textClamp(notification.tweetText)}"` : "";
 
   if (notification.type === "comment") {
-    content = `<i>${notification.senderName}</i> commented "<b>${textClamp(notification.text)}</b>" on your wint <b>${tweetPreview}</b>`;
+    content = `<span style="color:#00ba7c;">@${notification.senderName}</span> <b><span style="color:#f91880">commented</span></b> "<b>${textClamp(notification.text)}</b>" on your wint <b>${tweetPreview}</b>`;
+  } else if (notification.type === "commentMention") {
+    content = `<span style="color:#00ba7c;">@${notification.senderName}</span> <b><span style="color:#7856ff">mentioned</span></b> you on a comment "<b>${textClamp(notification.text)}</b>" in their wint <b>${tweetPreview}</b>`;
+  } else if (notification.type === "replyMention") {
+    content = `<span style="color:#00ba7c;">@${notification.senderName}</span> <b><span style="color:#7856ff">mentioned</span></b> you on a reply "<b>${textClamp(notification.text)}</b>"`;
   } else if (notification.type === "reply") {
-    content = `<i>${notification.senderName}</i> replied "<b>${textClamp(notification.text)}</b>" on your comment "<b>${textClamp(notification.replyToText)}</b>"`;
+    content = `<span style="color:#00ba7c;">@${notification.senderName}</span> <b><span style="color:#f91880">replied</span></b> "<b>${textClamp(notification.text)}</b>" on your comment "<b>${textClamp(notification.replyToText)}</b>"`;
   } else if (notification.type === "mention") {
-    content = `<i>${notification.senderName}</i> mentioned you on their wint <b>${tweetPreview}</b>.`;
+    content = `<span style="color:#00ba7c;">@${notification.senderName}</span> <b><span style="color:#7856ff">mentioned</span></b> you on their Wynt <b>${tweetPreview}</b>.`;
   } else if (notification.type === "retweet") {
-    const replyPart = notification.text?.trim() ?
-      ` "<b>${textClamp(notification.text)}</b>"` :
-      "";
-    content = `<i>${notification.senderName}</i> rewinted ${replyPart} on your post <b>${tweetPreview}</b>`;
+    const replyPart = notification.text?.trim() ? ` "<b>${textClamp(notification.text)}</b>"` : "";
+    content = `<span style="color:#00ba7c;">@${notification.senderName}</span> <b><span style="color:#ffd400">rewynted</span></b> ${replyPart} on your post <b>${tweetPreview}</b>`;
   } else {
-    content = `<i>${notification.senderName}</i> sent a notification`;
+    content = `<span style="color:#00ba7c;">@${notification.senderName}</span> sent a notification`;
   }
 
   div.innerHTML = `
-    <p>${content}</p>
-    <div class="flex" style="align-items:center;">
-      <span style="color:grey;font-size:13px">
-        ${formatTime(notification.createdAt.toDate())}
-      </span>
+    <div class="flex">
+      <p>
+        <span class="notif-unread" style="color:#da3e44;${notification.read === false ? '' : 'display:none;'}">(unread)</span>
+        ${content}
+        <span style="color:grey;font-size:13px">
+          ${formatTime(notification.createdAt.toDate())}
+        </span>
+      </p>
       <button class="delete-notif-btn" style="background:none;margin-left:auto;">
         <img src="image/trash.svg">
       </button>
@@ -114,7 +116,7 @@ export async function handleNotificationClick({
   const tweetSnap = await getDoc(doc(db, "tweets", tweetId));
 
   if (!tweetSnap.exists()) {
-    box.innerHTML = "<p>Wint not found.</p>";
+    box.innerHTML = `<div style="display:flex;justify-content:center;opacity:0.2;"><img style="height:250px;width:250px;" src="image/404.png"></div>`;
     return;
   }
 
@@ -203,7 +205,7 @@ export async function loadNotifications(initial = false) {
 
   if (snap.empty && initial) {
     notificationsContainer.innerHTML = `
-      <p style="text-align:center;color:grey;">aw snap! you have no notification... yet.</div>
+      <div style="display:flex;justify-content:center;opacity:0.2;"><img style="height:250px;width:250px;" src="image/404.png"></div></div>
     `;
     notificationLoading = false;
     return;
@@ -392,6 +394,61 @@ export async function sendRetweetNotification(originalTweetId, replyText, retwee
     tweetId: retweetId,
     originalTweetId: originalTweetId,
     tweetText: tweetSnap.data().text || "",
+    read: false
+  });
+}
+
+export async function sendCommentMentionNotification(tweetId, mentionedUserId, commentText) {
+  const sender = auth.currentUser;
+  if (!sender || sender.uid === mentionedUserId) return;
+
+  const tweetSnap = await getDoc(doc(db, "tweets", tweetId));
+  if (!tweetSnap.exists()) return;
+
+  const senderDoc = await getDoc(doc(db, "users", sender.uid));
+  const senderName = senderDoc.exists() ? senderDoc.data().displayName : "Someone";
+
+  const notificationRef = doc(
+    db,
+    "users",
+    mentionedUserId,
+    "notifications",
+    `${tweetId}-commentmention-${Date.now()}`
+  );
+
+  await setDoc(notificationRef, {
+    type: "commentMention",
+    senderName,
+    text: textClamp(commentText),
+    createdAt: serverTimestamp(),
+    tweetId,
+    tweetText: tweetSnap.data().text || "",
+    read: false
+  });
+}
+
+export async function sendReplyMentionNotification(tweetId, commentId, mentionedUserId, replyText) {
+  const sender = auth.currentUser;
+  if (!sender || sender.uid === mentionedUserId) return;
+
+  const senderDoc = await getDoc(doc(db, "users", sender.uid));
+  const senderName = senderDoc.exists() ? senderDoc.data().displayName : "Someone";
+
+  const notificationRef = doc(
+    db,
+    "users",
+    mentionedUserId,
+    "notifications",
+    `${tweetId}-replymention-${Date.now()}`
+  );
+
+  await setDoc(notificationRef, {
+    type: "replyMention",
+    senderName,
+    text: textClamp(replyText),
+    createdAt: serverTimestamp(),
+    tweetId,
+    commentId,
     read: false
   });
 }
