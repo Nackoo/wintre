@@ -964,12 +964,10 @@ document.body.addEventListener("click", async (e) => {
   await deleteSubcollectionDocs(tweetId, "likes");
   await deleteSubcollectionDocs(tweetId, "views");
 
-  for (const tag of data.tags || []) {
-    await deleteDoc(doc(db, "tags", tag, "tweets", tweetId));
-  }
-
-  for (const uid of data.mentions || []) {
-    await deleteDoc(doc(db, "users", uid, "mentioned", tweetId));
+  if (Array.isArray(data.mentions) && data.mentions.length > 0) {
+    for (const uid of data.mentions) {
+      await deleteDoc(doc(db, "users", uid, "mentioned", tweetId));
+    }
   }
 
   await deleteDoc(tweetRef);
