@@ -235,12 +235,20 @@ async function fetchUsers(reset = false) {
     item.style.cssText = "display:flex;gap:10px;padding:15px;border-bottom:var(--border);align-items:center";
 
     item.innerHTML = `
-    <img src="${data.photoURL}" onerror="this.src='image/default-avatar.jpg'" style="width:40px;height:40px;border-radius:50%;object-fit:cover;align-self:flex-start;">
-    <div style="flex:1">
-      <strong style="cursor:pointer;">${escapeHTML(data.displayName || "Unnamed")}</strong>
-      <p style="margin:5px 0;color:grey;font-size:15px;">${escapeHTML(data.description || "")}</p>
-    </div>
-    <button class="mini-follow-btn" style="padding:4px 10px;border-radius:50px;background:white;height:30px;cursor:pointer;border:1px solid var(--border);">...</button>
+<img src="${data.photoURL}" 
+     onerror="this.src='image/default-avatar.jpg'" 
+     style="width:40px;height:40px;border-radius:50%;object-fit:cover;align-self:flex-start;">
+
+<div style="flex:1">
+  <div style="display:flex;align-items:center;margin-bottom:10px;">
+    <strong style="cursor:pointer;">${escapeHTML(data.displayName || "Unnamed")}</strong>
+    <button class="mini-follow-btn" 
+            style="padding:0 10px;border-radius:50px;background:white;height:26px;cursor:pointer;border:1px solid var(--border);margin-left:auto;">
+      ...
+    </button>
+  </div>
+  <p style="margin:5px 0;color:grey;font-size:15px;">${escapeHTML(data.description || "")}</p>
+</div>
   `;
 
     usersView.appendChild(item);
