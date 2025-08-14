@@ -45,6 +45,7 @@
   left: 20px;
   object-fit: cover;
   object-position: center;
+  border: 6px solid black;
 }
 
 .follow-btn {
@@ -150,8 +151,26 @@
   background: none !important;
   border: none;
   font-weight: bold;
-  color: var(--color) !important;
+  color: grey !important;
   cursor: pointer;
+}
+
+.tab1 {
+  margin-top: 0;
+}
+
+.tab:hover,
+.tab1:hover,
+.tab2:hover,
+.tab3:hover {
+  background: var(--light) !important;
+}
+
+.tab.active,
+.tab1.active,
+.tab2.active,
+.tab3.active {
+  color: white !important;
 }
 
 .tab.active::after,
@@ -309,6 +328,7 @@
   margin-bottom: 13px;
   cursor: pointer;
   border: none !important;
+  border-radius: 0 !important;
   border-bottom: var(--border) !important;
 }
 
