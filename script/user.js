@@ -1,5 +1,6 @@
 import { db, collection, query, where, getDocs, orderBy, limit, auth, getDoc, doc, setDoc, deleteDoc, startAfter } from "./firebase.js";
 import { renderTweet } from './index.js';
+import { sendFollowNotification } from "./notification.js";
 
 const searchBtn = document.querySelector('.smallbar img[src="image/search.svg"]');
 const userOverlay = document.getElementById("userOverlay");
@@ -271,6 +272,7 @@ async function fetchUsers(reset = false) {
             followedAt: new Date()
           });
           btn.textContent = "Unfollow";
+          sendFollowNotification(targetId);
         }
       };
     } else {
@@ -447,6 +449,7 @@ async function openUserSubProfile(uid) {
         followedAt: new Date()
       });
       followBtn.textContent = "Unfollow";
+      sendFollowNotification(uid);
     }
   };
 
