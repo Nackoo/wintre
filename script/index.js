@@ -1411,7 +1411,7 @@ async function loadComments(tweetId) {
     commentHTML.innerHTML = `
                     <div class="flex" id="pinned" style="gap:3px;display:none;">
                       <img src="image/pin.svg" style="width:22px;height:22px;">
-                      <p style="color:grey;margin:0;font-size:13px;">pinned by the creator</p>
+                      <p style="color:grey;margin:0;font-size:14px;">pinned</p>
                     </div>
                     <div class="flex comment-header" style="gap:10px">
                       <img src="${escapeHTML(avatar)}" onerror="this.src='image/default-avatar.jpg'" class="avatar comment-avatar">
