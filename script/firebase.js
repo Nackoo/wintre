@@ -11,7 +11,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const firebaseConfig = {
   apiKey: "API_KEY",
-  authDomain: "AUTH_DOMAIN,
+  authDomain: "AUTH_DOMAIN",
   projectId: "PROJECT_ID",
   storageBucket: "STORAGE_BUCKET",
   messagingSenderId: "MESSAGING_SENDER_ID",
