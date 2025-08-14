@@ -1,3 +1,4 @@
+
 import { auth, db, doc, getDoc, collection, query, orderBy, onSnapshot,serverTimestamp, setDoc, limit, getDocs, where, updateDoc, writeBatch, deleteDoc, startAfter } from "./firebase.js";
 import { renderTweet } from "./index.js";
 
@@ -56,6 +57,9 @@ function createNotificationElement(notification) {
   } else if (notification.type === "retweet") {
     const replyPart = notification.text?.trim() ? ` "<b>${textClamp(notification.text)}</b>"` : "";
     content = `<span style="color:#00ba7c;">@${notification.senderName}</span> <b><span style="color:#ffd400">rewynted</span></b> ${replyPart} on your post <b>${tweetPreview}</b>`;
+  } else if (notification.type === "follow") {
+    content = `<span style="color:#00ba7c;">@${notification.senderName}</span> just <b><span style="color:#1d9bf0">followed</span></b> you`;
+    div.dataset.senderId = notification.senderId;
   } else {
     content = `<span style="color:#00ba7c;">@${notification.senderName}</span> sent a notification`;
   }
@@ -105,8 +109,15 @@ export async function handleNotificationClick({
   tweetId,
   commentId,
   replyId,
-  type
+  type,
+  senderId
 }) {
+  if (type === "follow") {
+    if (typeof window.openUserSubProfile === "function") {
+      window.openUserSubProfile(senderId);
+    }
+    return;
+  }
   const tweetViewer = document.getElementById("tweetViewer");
   const box = tweetViewer.querySelector("#appendTweet");
   tweetViewer.classList.remove("hidden");
@@ -442,6 +453,31 @@ export async function sendReplyMentionNotification(tweetId, commentId, mentioned
     createdAt: serverTimestamp(),
     tweetId,
     commentId,
+    read: false
+  });
+}
+
+export async function sendFollowNotification(targetUserId) {
+  const sender = auth.currentUser;
+  if (!sender || sender.uid === targetUserId) return;
+
+  const senderDoc = await getDoc(doc(db, "users", sender.uid));
+  const senderName = senderDoc.exists() ? senderDoc.data().displayName : "Someone";
+
+  const notificationRef = doc(
+    db,
+    "users",
+    targetUserId,
+    "notifications",
+    `follow-${Date.now()}`
+  );
+
+  await setDoc(notificationRef, {
+    type: "follow",
+    senderName,
+    senderId: sender.uid,
+    text: `${senderName} just followed you`,
+    createdAt: serverTimestamp(),
     read: false
   });
 }
