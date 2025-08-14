@@ -1,4 +1,3 @@
-
 import { auth, db, doc, getDoc, collection, query, orderBy, onSnapshot,serverTimestamp, setDoc, limit, getDocs, where, updateDoc, writeBatch, deleteDoc, startAfter } from "./firebase.js";
 import { renderTweet } from "./index.js";
 
