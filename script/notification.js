@@ -38,45 +38,45 @@ function clearNotificationsUI() {
 
 function createNotificationElement(notification) {
   const div = document.createElement("div");
-  div.className = `notification ${notification.type || 'default'}`;
+  div.className = `notification`;
 
   let content = "";
   const hasText = notification.tweetText?.trim().length > 0;
   const tweetPreview = hasText ? `"${textClamp(notification.tweetText)}"` : "";
 
   if (notification.type === "comment") {
-    content = `<span style="color:#00ba7c;">@${notification.senderName}</span> <b><span style="color:#f91880">commented</span></b> "<b>${textClamp(notification.text)}</b>" on your wint <b>${tweetPreview}</b>`;
+    content = `<span style="color:#00ba7c;">@${notification.senderName}</span> <b><span style="color:#f91880">commented</span></b> <i>"${textClamp(notification.text)}"</i> on your wint <i>${tweetPreview}</i>`;
   } else if (notification.type === "commentMention") {
-    content = `<span style="color:#00ba7c;">@${notification.senderName}</span> <b><span style="color:#7856ff">mentioned</span></b> you on a comment "<b>${textClamp(notification.text)}</b>" in their wint <b>${tweetPreview}</b>`;
+    content = `<span style="color:#00ba7c;">@${notification.senderName}</span> <b><span style="color:#7856ff">mentioned</span></b> you on a comment <i>"${textClamp(notification.text)}"</i> in their wint <b>${tweetPreview}</b>`;
   } else if (notification.type === "replyMention") {
-    content = `<span style="color:#00ba7c;">@${notification.senderName}</span> <b><span style="color:#7856ff">mentioned</span></b> you on a reply "<b>${textClamp(notification.text)}</b>"`;
+    content = `<span style="color:#00ba7c;">@${notification.senderName}</span> <b><span style="color:#7856ff">mentioned</span></b> you on a reply <i>"${textClamp(notification.text)}</i>"`;
   } else if (notification.type === "reply") {
-    content = `<span style="color:#00ba7c;">@${notification.senderName}</span> <b><span style="color:#f91880">replied</span></b> "<b>${textClamp(notification.text)}</b>" on your comment "<b>${textClamp(notification.replyToText)}</b>"`;
+    content = `<span style="color:#00ba7c;">@${notification.senderName}</span> <b><span style="color:#f91880">replied</span></b> <i>"${textClamp(notification.text)}"</i> on your comment "${textClamp(notification.replyToText)}"`;
   } else if (notification.type === "mention") {
-    content = `<span style="color:#00ba7c;">@${notification.senderName}</span> <b><span style="color:#7856ff">mentioned</span></b> you on their Wynt <b>${tweetPreview}</b>.`;
+    content = `<span style="color:#00ba7c;">@${notification.senderName}</span> <b><span style="color:#7856ff">mentioned</span></b> you on their Wynt <i>${tweetPreview}</i>.`;
   } else if (notification.type === "retweet") {
-    const replyPart = notification.text?.trim() ? ` "<b>${textClamp(notification.text)}</b>"` : "";
-    content = `<span style="color:#00ba7c;">@${notification.senderName}</span> <b><span style="color:#ffd400">rewynted</span></b> ${replyPart} on your post <b>${tweetPreview}</b>`;
+    const replyPart = notification.text?.trim() ? ` "<i>${textClamp(notification.text)}</i>"` : "";
+    content = `<span style="color:#00ba7c;">@${notification.senderName}</span> <b><span style="color:#ffd400">rewynted</span></b> ${replyPart} on your post <i>${tweetPreview}</i>`;
   } else if (notification.type === "follow") {
-    content = `<span style="color:#00ba7c;">@${notification.senderName}</span> just <b><span style="color:#1d9bf0">followed</span></b> you`;
+    content = `<span style="color:#00ba7c;">@${notification.senderName}</span> is now <b><span style="color:#1d9bf0">following</span></b> you`;
     div.dataset.senderId = notification.senderId;
   } else {
-    content = `<span style="color:#00ba7c;">@${notification.senderName}</span> sent a notification`;
+    content = `<span style="color:#00ba7c;">@${notification.senderName}</span> sent you a notification`;
   }
 
   div.innerHTML = `
-    <div class="flex">
-      <p>
-        <span class="notif-unread" style="color:#1d9bf0;${notification.read === false ? '' : 'display:none;'}">(unread)</span>
-        ${content}
-        <span style="color:grey;font-size:13px">
-          ${formatTime(notification.createdAt.toDate())}
-        </span>
-      </p>
-      <button class="delete-notif-btn" style="background:none;margin-left:auto;">
-        <img src="image/trash.svg">
-      </button>
-    </div>
+<div class="flex" style="margin:0;">
+  <p style="margin:0;">
+    <span class="notif-unread" style="color:#1d9bf0;${notification.read === false ? '' : 'display:none;'}">(unread)</span>
+    ${content}
+    <span style="color:grey;font-size:13px">
+      ${formatTime(notification.createdAt.toDate())}
+    </span>
+  </p>
+  <button class="delete-notif-btn" style="background:none;margin-left:auto;">
+    <img src="image/trash.svg">
+  </button>
+</div>
   `;
 
   div.dataset.tweetId = notification.tweetId;
@@ -112,12 +112,14 @@ export async function handleNotificationClick({
   type,
   senderId
 }) {
+
   if (type === "follow") {
     if (typeof window.openUserSubProfile === "function") {
       window.openUserSubProfile(senderId);
     }
     return;
   }
+
   const tweetViewer = document.getElementById("tweetViewer");
   const box = tweetViewer.querySelector("#appendTweet");
   tweetViewer.classList.remove("hidden");
