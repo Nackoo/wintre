@@ -46,17 +46,12 @@
       <h2 id="my-name" style="margin-top:80px;margin-bottom:0;"></h2>
       <p id="my-description"></p>
       <p style="display:flex;align-items:center;margin-bottom:0;"><img src="image/calendar.svg" style="margin-right:6px;height:20px;"><span id="my-creation"></span></p>
-      <div style="border-bottom: var(--border); align-items: center; margin-bottom: 0;display: flex; gap: 8px;"><span id="my-ers"><span id="my-followers" style="font-weight:bold;">0</span> <span style="color:grey">followers</span></span> <span id="my-ing"><span id="my-following" style="font-weight:bold;">0</span> <span style="color:grey">following</span></span>
+      <div style="align-items: center; margin-bottom: 0;display: flex; gap: 8px;"><span id="my-ers"><span id="my-followers" style="font-weight:bold;">0</span> <span style="color:grey">followers</span></span> <span id="my-ing"><span id="my-following" style="font-weight:bold;">0</span> <span style="color:grey">following</span></span>
         <p style="margin-left:auto;"><span id="my-posts" style="font-weight:bold;">0</span> <span style="color:grey">wints</span></p>
       </div>
-      <div class="flex" style="margin-top:20px;gap:12px;">
-        <button onclick="document.getElementById('profileInput').value='';
-        document.getElementById('profileInput').dispatchEvent(new Event('input'));" style="background: none;"><img src="image/x.svg"></button>
-        <input type="text" id="profileInput" placeholder="search anything"></input>
-      </div>
-      <div class="tab-container">
-        <button class="tab2 active" data-target="youList">Wints</button>
-        <button class="tab2" data-target="mentionedList">Mentioned</button>
+      <div class="tab-container" style="border-bottom: var(--border);">
+        <button class="tab2 active" data-target="youList" style="margin:0">Wints</button>
+        <button class="tab2" data-target="mentionedList" style="margin:0">Mentioned</button>
       </div>
       <div id="youList" class="tab-content"></div>
       <div id="mentionedList" class="tab-content hidden"></div>
@@ -93,7 +88,7 @@
       <br><br><br>
       <button onclick="window.open('/user/tos', '_blank', 'noopener')" style="background:var(--light);width:100%;padding:0 15px;border-radius:10px;border:var(--border);display:flex;gap:8px;align-items:center;">
         <img src="image/arrow-up.svg">
-        <p style="color:var(--color);">Wyntr ToS</a>
+        <p style="color:var(--color);">Wyntr ToS</p>
       </button>
       <br>
       <div class="flex">
@@ -108,7 +103,7 @@
     <div class="user-box">
       <br>
       <header style="display: flex; gap: 15px;padding-bottom:15px">
-        <button onclick="hideuser()" style="background: none;"><img src="image/x.svg"></button></img>
+        <button onclick="hideuser()" style="background: none;"><img src="image/x.svg"></button>
         <input type="text" placeholder="search anything"></input>
       </header>
       <div class="tab-container">
@@ -129,7 +124,7 @@
     <div class="user-box">
       <br>
       <header style="display: flex; gap: 15px;">
-        <button onclick="hidenotif()" style="background: none;"><img src="image/leftArrow.svg"></button></img>
+        <button onclick="hidenotif()" style="background: none;"><img src="image/leftArrow.svg"></button>
         <h2>notifications</h2>
       </header>
       <div id="notifications">
@@ -162,18 +157,12 @@
       <h2 id="user-name" style="margin-top:80px;margin-bottom:0;"></h2>
       <p id="user-description"></p>
       <p style="display:flex;align-items:center;margin-bottom:0;"><img src="image/calendar.svg" style="margin-right:6px;height:20px;"><span id="user-creation"></span></p>
-      <div style="border-bottom: var(--border); align-items: center; margin-bottom: 20px;display: flex; gap: 8px;"><span id="ers"><span id="followers" style="font-weight:bold;">0</span> <span style="color:grey">followers</span></span> <span id="ing"><span id="following" style="font-weight:bold;">0</span> <span style="color:grey">following</span></span>
+      <div style="align-items: center; margin-bottom: 5px;display: flex; gap: 8px;"><span id="ers"><span id="followers" style="font-weight:bold;">0</span> <span style="color:grey">followers</span></span> <span id="ing"><span id="following" style="font-weight:bold;">0</span> <span style="color:grey">following</span></span>
         <p style="margin-left:auto;"><span id="posts" style="font-weight:bold;">0</span> <span style="color:grey">wynts</span></p>
       </div>
-      <div class="flex" style="margin:0;gap:12px;">
-        <button onclick="
-        document.getElementById('userInput').value='';
-        document.getElementById('userInput').dispatchEvent(new Event('input'));" style="background: none;"><img src="image/x.svg"></button>
-        <input type="text" id="userInput" placeholder="search anything"></input>
-      </div>
-      <div class="tab-container">
-        <button class="tab3 active" data-target="userList">Wynts</button>
-        <button class="tab3" data-target="usermentionedList">Mentioned</button>
+      <div class="tab-container" style="border-bottom: var(--border);">
+        <button class="tab3 active" data-target="userList" style="margin:0;">Wynts</button>
+        <button class="tab3" data-target="usermentionedList" style="margin:0;">Mentioned</button>
       </div>
       <div id="userList"></div>
       <div id="usermentionedList"></div>
@@ -190,8 +179,8 @@
     " id="post"><img src="image/write.svg"></button>
       <header style="z-index: 2; position: fixed; transition: top 0.4s ease;" id="timeline-header">
         <div class="tab-container" id="tab-container-header">
-          <button class="tab active" data-target="timeline">All</button>
-          <button class="tab" data-target="following1">following</button>
+          <button class="tab active" data-target="timeline" style="margin:10px 0">All</button>
+          <button class="tab" data-target="following1" style="margin: 10px 0;">following</button>
         </div>
       </header>
       <br><br><br>
