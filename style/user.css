@@ -405,3 +405,11 @@
 #sendRetweet.disabled {
   background: grey !important;
 }
+
+.user-link.owner-comment {
+  background-color: #0058cc;
+  padding: 2px 5px;
+  border-radius: 15px;
+  font-size: 13px;
+  color: white;
+}
