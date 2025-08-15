@@ -143,15 +143,9 @@ async function retryWhenBackOnline() {
   const loadingScreen = document.getElementById("loadingScreen");
   const logEl = document.getElementById("log");
 
-  if (logEl) logEl.textContent = "connection restored, fetching...";
-
-  try {
-
-    await loadTweets(true);
-  } catch (err) {
-    if (logEl) logEl.textContent = "failed to reload wynts";
-    console.error("Failed to reload wynts after reconnect", err);
-  }
+  if (logEl) logEl.textContent = "connection restored";
+  loadingScreen.style.display = "none";
+  loadingScreen.style.opacity = "0";
 }
 
 onAuthStateChanged(auth, async (user) => {
@@ -299,7 +293,6 @@ document.getElementById("postBtn").addEventListener("click", async () => {
     return;
   }
 
-  // 🔹 Check cooldown
   const userRef = doc(db, "users", user.uid);
   const userSnap = await getDoc(userRef);
   if (userSnap.exists()) {
@@ -1198,6 +1191,9 @@ document.body.addEventListener("click", async (e) => {
     applyReadMoreLogic(commentTweet);
 
     document.getElementById("sendComment").onclick = async () => {
+
+      const tweetDoc = await getDoc(doc(db, "tweets", tweetId));
+      const tweetOwnerId = tweetDoc.exists() ? tweetDoc.data().uid : null;
       const sendBtn = document.getElementById("sendComment");
       sendBtn.disabled = true;
       sendBtn.classList.add("disabled");
@@ -1232,6 +1228,7 @@ document.body.addEventListener("click", async (e) => {
             mediaType,
             uid: user.uid,
             likeCount: 0,
+            isOwner: user.uid === tweetOwnerId,
             createdAt: new Date(),
             ...(mentions.length > 0 && {
               mentions
@@ -1406,7 +1403,7 @@ async function loadComments(tweetId) {
 
     const creatorLikeRef = doc(db, "tweets", tweetId, "comments", commentId, "likes", tweetOwnerId);
     const creatorLikeSnap = await getDoc(creatorLikeRef);
-    const likedByCreator = creatorLikeSnap.exists();
+    const likedByCreator = !!d.creatorLiked;
 
     commentHTML.innerHTML = `
                     <div class="flex" id="pinned" style="gap:3px;display:none;">
@@ -1415,7 +1412,7 @@ async function loadComments(tweetId) {
                     </div>
                     <div class="flex comment-header" style="gap:10px">
                       <img src="${escapeHTML(avatar)}" onerror="this.src='image/default-avatar.jpg'" class="avatar comment-avatar">
-                      <div class="user-link" data-uid="${d.uid}" style="cursor:pointer; ${d.uid === tweetOwnerId ? 'background-color:#0058cc; padding:2px 5px; border-radius:15px; font-size:13px; color: white;' : ''}">
+                      <div class="user-link" data-uid="${d.uid}" style="cursor:pointer; ${d.uid}">
                         @${escapeHTML(displayName)}
                       </div>
                       <span class="comment-date">${formatDate(d.createdAt)}</span>
@@ -1477,6 +1474,10 @@ async function loadComments(tweetId) {
         if (cancelBtn) cancelBtn.remove();
         if (attachmentBox) attachmentBox.remove();
       }
+    }
+
+    if (d.isOwner) {
+      commentHTML.querySelector(".user-link").classList.add("owner-comment");
     }
 
     if (isOwner) {
@@ -1542,6 +1543,23 @@ const REPLY_PAGE_SIZE = 10;
 let loadedReplies = {};
 let activeTweetId = null;
 
+const overlay = document.querySelector(".mediaOverlay");
+const overlayContent = document.getElementById("overlayContent");
+
+overlay.addEventListener("click", (e) => {
+  if (e.target === overlay) {
+    overlay.classList.add("hidden");
+    overlayContent.innerHTML = "";
+  }
+});
+
+document.addEventListener("click", (e) => {
+  if (e.target.id === "closeOverlay") {
+    overlay.classList.add("hidden");
+    overlayContent.innerHTML = "";
+  }
+});
+
 document.body.addEventListener("click", async (e) => {
 
   const toggleRepliesBtn = e.target.closest(".toggle-replies-btn");
@@ -1588,6 +1606,8 @@ document.body.addEventListener("click", async (e) => {
       const profile = userDoc.exists() ? userDoc.data() : {};
       const originalCommenterId = box.closest(".comment-item")?.dataset.uid;
       const originalCommentText = box.closest(".comment-item")?.dataset.text || "";
+      const tweetDoc = await getDoc(doc(db, "tweets", tweetId));
+
       let media = "",
         mediaType = "";
       if (file) {
@@ -1609,10 +1629,12 @@ document.body.addEventListener("click", async (e) => {
 
       const mentionsRaw = await extractMentions(text);
       const mentions = mentionsRaw.map(m => m.uid);
+      const tweetOwnerId = tweetDoc.exists() ? tweetDoc.data().uid : null;
 
       await addDoc(collection(db, "tweets", tweetId, "comments", commentId, "replies"), {
         text,
         media,
+        isOwner: user.uid === tweetOwnerId,
         mediaType,
         uid: user.uid,
         createdAt: new Date(),
@@ -1664,43 +1686,23 @@ document.body.addEventListener("click", async (e) => {
     const tweetId = e.target.dataset.tweet;
     await loadReplies(tweetId, commentId);
   }
-  const overlay = document.querySelector(".mediaOverlay");
-const overlayContent = document.getElementById("overlayContent");
+  if (e.target.tagName === "VIDEO" || e.target.closest("video")) {
+    return;
+  }
 
-document.addEventListener("click", (e) => {
-  if (
-    e.target.tagName === "IMG" &&
-    (e.target.closest(".attachment") ||
-     e.target.closest(".attachment1") ||
-     e.target.closest(".rt-attachment") ||
-     e.target.closest(".attachment2"))
-  ) {
+  const container = e.target.closest(".attachment, .attachment1, .rt-attachment, .attachment2");
+  if (!container) return;
+
+  const img = [...container.querySelectorAll("img")].find(el => {
+    const src = (el.currentSrc || el.src || "");
+    const cleaned = src.split("#")[0].split("?")[0].toLowerCase();
+    return !cleaned.endsWith("/image/volume.svg") &&
+      !cleaned.endsWith("/image/volume-muted.svg");
+  });
+
+  if (img) {
     overlay.classList.remove("hidden");
-    overlayContent.innerHTML = `<img src="${e.target.src}" />`;
-  }
-});
-
-// Close overlay if clicked outside the image
-overlay.addEventListener("click", (e) => {
-  if (e.target === overlay) {
-    overlay.classList.add("hidden");
-    overlayContent.innerHTML = "";
-  }
-});
-
-  if (e.target.tagName === "VIDEO" || (e.target.tagName === "SOURCE" && e.target.closest("video"))) {
-    const video = e.target.closest("video");
-    if (video && video.src) {
-      overlay.classList.remove("hidden");
-      overlayContent.innerHTML = `
-                      <video src="${video.src}" controls autoplay style="max-width: 90%; max-height: 90%;"></video>
-                      `;
-    }
-  }
-
-  if (e.target.id === "closeOverlay") {
-    overlay.classList.add("hidden");
-    overlayContent.innerHTML = "";
+    overlayContent.innerHTML = `<img src="${img.src}" />`;
   }
 });
 
@@ -1765,25 +1767,31 @@ async function loadReplies(tweetId, commentId) {
     );
     const replylikeCount = replylikeCountSnap.data().count;
 
-    replyList.innerHTML += `
-                      <div class="reply-block">
-                        <div class="flex comment-header" style="gap:10px">
-                          <img src="${escapeHTML(avatar)}" onerror="this.src='image/default-avatar.jpg'" class="avatar comment-avatar">
-                          <div class="user-link" data-uid="${r.uid}" style="cursor:pointer; ${r.uid === tweetOwnerId ? 'background-color:#0058cc; padding:2px 5px; border-radius:15px; font-size:13px; color:white;' : ''}">
-                            @${escapeHTML(displayName)}
-                          </div>
-                          <span class="reply-date">${formatDate(r.createdAt)}</span>
-                        </div>
-                        <p class="little-margin">${await parseMentionsToLinks(r.text)}</p>
-                        ${r.media && r.mediaType === "image" ? `<img src="${r.media}" class="attachment1" style="max-width:100%;max-height:200px;margin-bottom:5px;border-radius:8px">` : ""}
-                        <div class="flex">
-                          <span class="reply-like-btn" data-reply="${rId}" data-comment="${commentId}" data-tweet="${tweetId}" style="cursor:pointer">
-                            ${replyisLiked ? `<img src="image/filled-heart.svg">` : `<img src="image/heart.svg">`} <span id="reply-like-count-${rId}">${replylikeCount}</span></span>
-                          ${auth.currentUser.uid === r.uid ? `<span class="reply-delete-btn" data-comment="${commentId}" data-reply="${rId}" data-tweet="${tweetId}" style="cursor:pointer;margin-left:auto;"><img src="image/trash.svg"></span>
-                          ` : ""}
-                        </div>
-                      </div>
-                      `;
+    const replyHTML = document.createElement("div");
+    replyHTML.className = "reply-block";
+    replyHTML.innerHTML = `
+    <div class="flex comment-header" style="gap:10px">
+      <img src="${escapeHTML(avatar)}" onerror="this.src='image/default-avatar.jpg'" class="avatar comment-avatar">
+      <div class="user-link" data-uid="${r.uid}" style="cursor:pointer;">
+        @${escapeHTML(displayName)}
+      </div>
+      <span class="reply-date">${formatDate(r.createdAt)}</span>
+    </div>
+    <p class="little-margin">${await parseMentionsToLinks(r.text)}</p>
+    ${r.media && r.mediaType === "image" ? `<img src="${r.media}" class="attachment1" style="max-width:100%;max-height:200px;margin-bottom:5px;border-radius:8px">` : ""}
+    <div class="flex">
+      <span class="reply-like-btn" data-reply="${rId}" data-comment="${commentId}" data-tweet="${tweetId}" style="cursor:pointer">
+        ${replyisLiked ? `<img src="image/filled-heart.svg">` : `<img src="image/heart.svg">`} <span id="reply-like-count-${rId}">${replylikeCount}</span>
+      </span>
+      ${auth.currentUser.uid === r.uid ? `<span class="reply-delete-btn" data-comment="${commentId}" data-reply="${rId}" data-tweet="${tweetId}" style="cursor:pointer;margin-left:auto;"><img src="image/trash.svg"></span>` : ""}
+    </div>
+  `;
+
+    if (r.isOwner) {
+      replyHTML.querySelector(".user-link").classList.add("owner-comment");
+    }
+
+    replyList.appendChild(replyHTML);
   }
 
   loadedReplies[commentId] = offset + replyDocs.length;
@@ -1807,22 +1815,30 @@ document.body.addEventListener("click", async (e) => {
     const ref = doc(db, "tweets", tweetId, "comments", commentId, "likes", auth.currentUser.uid);
     const snap = await getDoc(ref);
 
+    const tweetDoc = await getDoc(doc(db, "tweets", tweetId));
+    const tweetOwnerId = tweetDoc.exists() ? tweetDoc.data().uid : null;
+    const isCreator = auth.currentUser.uid === tweetOwnerId;
+
     if (snap.exists()) {
       await deleteDoc(ref);
       if (icon) icon.src = "image/heart.svg";
       if (countSpan) countSpan.textContent = `${parseInt(countSpan.textContent || 1) - 1}`;
-      await updateDoc(doc(db, "tweets", tweetId, "comments", commentId), {
+      const updateData = {
         likeCount: increment(-1)
-      });
+      };
+      if (isCreator) updateData.creatorLiked = false;
+      await updateDoc(doc(db, "tweets", tweetId, "comments", commentId), updateData);
     } else {
       await setDoc(ref, {
         likedAt: new Date()
       });
       if (icon) icon.src = "image/filled-heart.svg";
       if (countSpan) countSpan.textContent = `${parseInt(countSpan.textContent || 0) + 1}`;
-      await updateDoc(doc(db, "tweets", tweetId, "comments", commentId), {
+      const updateData = {
         likeCount: increment(1)
-      });
+      };
+      if (isCreator) updateData.creatorLiked = true;
+      await updateDoc(doc(db, "tweets", tweetId, "comments", commentId), updateData);
     }
   }
 
@@ -1836,16 +1852,26 @@ document.body.addEventListener("click", async (e) => {
     const ref = doc(db, "tweets", tweetId, "comments", commentId, "replies", replyId, "likes", auth.currentUser.uid);
     const snap = await getDoc(ref);
 
+    const tweetDoc = await getDoc(doc(db, "tweets", tweetId));
+    const tweetOwnerId = tweetDoc.exists() ? tweetDoc.data().uid : null;
+    const isCreator = auth.currentUser.uid === tweetOwnerId;
+
     if (snap.exists()) {
       await deleteDoc(ref);
       if (icon) icon.src = "image/heart.svg";
       if (countSpan) countSpan.textContent = `${parseInt(countSpan.textContent || 1) - 1}`;
+      const updateData = {};
+      if (isCreator) updateData.creatorLiked = false;
+      await updateDoc(doc(db, "tweets", tweetId, "comments", commentId, "replies", replyId), updateData);
     } else {
       await setDoc(ref, {
         likedAt: new Date()
       });
       if (icon) icon.src = "image/filled-heart.svg";
       if (countSpan) countSpan.textContent = `${parseInt(countSpan.textContent || 0) + 1}`;
+      const updateData = {};
+      if (isCreator) updateData.creatorLiked = true;
+      await updateDoc(doc(db, "tweets", tweetId, "comments", commentId, "replies", replyId), updateData);
     }
   }
 
@@ -2185,55 +2211,5 @@ mediaInput1.addEventListener('change', function(e) {
     preview.style.maxHeight = '333px';
     preview.controls = file.type.startsWith('video');
     attachment1.appendChild(preview);
-  }
-});
-
-document.body.addEventListener("click", async (e) => {
-  const userLink = e.target.closest(".user-link");
-  if (userLink && userLink.dataset.uid) {
-    const uid = userLink.dataset.uid;
-    if (uid) {
-      await window.openUserSubProfile(uid);
-      document.getElementById('commentOverlay').classList.add('hidden');
-      document.getElementById('userOverlay').classList.remove('hidden');
-      document.querySelector('.smallbar img[src="image/home-filled.svg"]').classList.add('hidden');
-      document.querySelector('.smallbar img[src="image/home.svg"]').classList.remove('hidden');
-      document.querySelector('.smallbar img[src="image/search.svg"]').classList.add('hidden');
-      document.querySelector('.smallbar img[src="image/search-filled.svg"]').classList.remove('hidden');
-      document.getElementById('followOverlay').classList.add('hidden');
-      document.getElementById('profileOverlay').classList.add('hidden');
-      document.querySelector('.smallbar img[src="image/user-filled.svg"]')?.classList.add('hidden');
-      document.querySelector('.smallbar img[src="image/user.svg"]')?.classList.remove('hidden');
-      document.querySelector('.smallbar img[src="image/notification-filled.svg"]')?.classList.add('hidden');
-      document.getElementById('notifsvg')?.classList.remove('hidden');
-      document.getElementById('tweetViewer').classList.add('hidden');
-    }
-  }
-});
-
-document.body.addEventListener("click", async (e) => {
-  const tagLink = e.target.closest(".tag-link");
-  if (tagLink && tagLink.dataset.tag) {
-    const tag = tagLink.dataset.tag;
-    if (tag) {
-      document.getElementById('tweetViewer')?.classList.add('hidden');
-      document.getElementById('profileOverlay')?.classList.add('hidden');
-      document.getElementById('userSubOverlay')?.classList.add('hidden');
-      document.getElementById('commentOverlay')?.classList.add('hidden');
-      document.getElementById('userOverlay')?.classList.remove('hidden');
-      document.querySelector('.smallbar img[src="image/home-filled.svg"]')?.classList.add('hidden');
-      document.querySelector('.smallbar img[src="image/home.svg"]')?.classList.remove('hidden');
-      document.querySelector('.smallbar img[src="image/user-filled.svg"]')?.classList.add('hidden');
-      document.querySelector('.smallbar img[src="image/user.svg"]')?.classList.remove('hidden');
-      document.querySelector('.smallbar img[src="image/bookmark-filled.svg"]')?.classList.add('hidden');
-      document.querySelector('.smallbar img[src="image/bookmark.svg"]')?.classList.remove('hidden');
-      document.querySelector('.smallbar img[src="image/search.svg"]').classList.add('hidden');
-      document.querySelector('.smallbar img[src="image/search-filled.svg"]').classList.remove('hidden');
-      document.getElementById('followOverlay')?.classList.add('hidden');
-      document.querySelector('.smallbar img[src="image/notification-filled.svg"]')?.classList.add('hidden');
-      document.getElementById('notifsvg')?.classList.remove('hidden');
-      document.getElementById('tweetViewer').classList.add('hidden');
-      window.openTag(tag);
-    }
   }
 });
