@@ -201,7 +201,7 @@ loadMore.addEventListener("click", () => {
   loadTweets(uid);
 });
 
-const mloadMore = document.getElementById("mLoadMore"); 
+const mloadMore = document.getElementById("mLoadMore");
 
 mloadMore.addEventListener("click", () => {
   const uid = document.getElementById("user-name").dataset.uid;
@@ -230,75 +230,39 @@ async function fetchUsers(reset = false) {
     const data = docSnap.data();
     const targetId = docSnap.id;
 
+    const desc = data.description || "wsg homie?";
+    const shortDesc = desc.length > 60 ? desc.slice(0, 60) + "..." : desc;
+
     const item = document.createElement("div");
     item.className = "user-search-item";
     item.style.cssText = "display:flex;gap:10px;padding:15px;border-bottom:var(--border);align-items:center";
 
     item.innerHTML = `
-<img src="${data.photoURL}" 
-     onerror="this.src='image/default-avatar.jpg'" 
+<img src="${data.photoURL}" onerror="this.src='image/default-avatar.jpg'"
      style="width:40px;height:40px;border-radius:50%;object-fit:cover;align-self:flex-start;">
-
 <div style="flex:1">
   <div style="display:flex;align-items:center;margin-bottom:10px;">
     <strong style="cursor:pointer;">${escapeHTML(data.displayName || "Unnamed")}</strong>
-    <button class="mini-follow-btn" 
+    <button class="mini-follow-btn"
             style="padding:0 10px;border-radius:50px;background:white;height:26px;cursor:pointer;border:1px solid var(--border);margin-left:auto;">
       ...
     </button>
   </div>
-  <p style="margin:5px 0;color:grey;font-size:15px;">${escapeHTML(data.description || "")}</p>
-</div>
-  `;
-
-    usersView.appendChild(item);
-    totalLoaded++;
+  <p style="margin:5px 0;color:grey;font-size:15px;">${escapeHTML(shortDesc)}</p>
+</div>`;
 
     const btn = item.querySelector(".mini-follow-btn");
-    if (auth.currentUser?.uid !== targetId) {
-      const currentUid = auth.currentUser.uid;
-      const myFollowingRef = doc(db, "users", currentUid, "following", targetId);
-      const theirFollowersRef = doc(db, "users", targetId, "followers", currentUid);
-
-      const isFollowingSnap = await getDoc(myFollowingRef);
-      btn.textContent = isFollowingSnap.exists() ? "Unfollow" : "Follow";
-
-      btn.onclick = async (e) => {
-        e.stopPropagation();
-        const latestSnap = await getDoc(myFollowingRef);
-        const isNowFollowing = latestSnap.exists();
-
-        if (isNowFollowing) {
-          await deleteDoc(myFollowingRef);
-          await deleteDoc(theirFollowersRef);
-          btn.textContent = "Follow";
-        } else {
-          await setDoc(myFollowingRef, {
-            followedAt: new Date()
-          });
-          await setDoc(theirFollowersRef, {
-            followedAt: new Date()
-          });
-          btn.textContent = "Unfollow";
-          sendFollowNotification(targetId);
-        }
-      };
-    } else {
-
-      btn.style.display = "none";
-    }
+    await setupMiniFollowBtn(btn, targetId);
 
     item.addEventListener("click", (e) => {
       if (!e.target.classList.contains("mini-follow-btn")) {
         openUserSubProfile(targetId);
       }
     });
-  }
 
-  if (reset && filtered.length === 0) {
-    usersView.innerHTML = `<div style="display:flex;justify-content:center;opacity:0.2;"><img style="height:250px;width:250px;" src="image/404.png"></div>`;
+    usersView.appendChild(item);
+    totalLoaded++;
   }
-
   isFetching = false;
 }
 
@@ -564,7 +528,7 @@ async function loadFollowUsers(type, userId, searchTerm = "") {
 
   const snap = await getDocs(q);
   if (snap.empty && followList.length === 0) {
-    document.getElementById("followList").innerHTML = `<p style="margin-top:20px;">no data</p>`;
+    document.getElementById("followList").innerHTML = `<div style="display:flex;justify-content:center;opacity:0.2;"><img style="height:250px;width:250px;" src="image/404.png"></div>`;
     return;
   }
   followLastDoc = snap.docs[snap.docs.length - 1];
@@ -581,14 +545,26 @@ async function loadFollowUsers(type, userId, searchTerm = "") {
     item.className = "user-search-item";
     item.style.cssText = "display:flex;gap:10px;padding:10px;border-bottom:var(--border);align-items:center";
     item.innerHTML = `
-      <img src="${data.photoURL || 'image/default-avatar.png'}"
-        style="width:40px;height:40px;border-radius:50%;object-fit:cover;align-self:flex-start;">
-      <div style="flex:1">
-        <strong class="user-link" data-uid="${theirId}" style="cursor:pointer">${escapeHTML(data.displayName || "Unnamed")}</strong>
-        <p style="margin:5px 0;color:grey">${escapeHTML(data.description || "")}</p>
-      </div>
-    `;
-    item.onclick = () => openUserSubProfile(theirId);
+    <div style="display:flex;gap:15px;align-items:center;flex:1;">
+    <img src="${data.photoURL}" onerror="this.src='image/default-avatar.jpg'"
+      style="width:40px;height:40px;border-radius:50%;object-fit:cover;">
+    <strong class="user-link" data-uid="${theirId}" style="cursor:pointer">${escapeHTML(data.displayName || "Unnamed")}</strong>
+    <button class="mini-follow-btn"
+          style="padding:0 10px;border-radius:50px;background:white;height:26px;cursor:pointer;border:1px solid var(--border);margin-left:auto;">
+    ...
+    </button>
+    </div>
+  `;
+
+    const btn = item.querySelector(".mini-follow-btn");
+    await setupMiniFollowBtn(btn, theirId);
+
+    item.addEventListener("click", (e) => {
+      if (!e.target.classList.contains("mini-follow-btn")) {
+        openUserSubProfile(theirId);
+      }
+    });
+
     document.getElementById("followList").appendChild(item);
     followList.push(item);
   }
@@ -615,6 +591,40 @@ followListContainer.addEventListener("scroll", () => {
     loadFollowUsers(type, userId, searchTerm);
   }
 });
+
+async function setupMiniFollowBtn(btn, targetId) {
+  if (auth.currentUser?.uid !== targetId) {
+    const currentUid = auth.currentUser.uid;
+    const myFollowingRef = doc(db, "users", currentUid, "following", targetId);
+    const theirFollowersRef = doc(db, "users", targetId, "followers", currentUid);
+
+    const isFollowingSnap = await getDoc(myFollowingRef);
+    btn.textContent = isFollowingSnap.exists() ? "Unfollow" : "Follow";
+
+    btn.onclick = async (e) => {
+      e.stopPropagation();
+      const latestSnap = await getDoc(myFollowingRef);
+      const isNowFollowing = latestSnap.exists();
+
+      if (isNowFollowing) {
+        await deleteDoc(myFollowingRef);
+        await deleteDoc(theirFollowersRef);
+        btn.textContent = "Follow";
+      } else {
+        await setDoc(myFollowingRef, {
+          followedAt: new Date()
+        });
+        await setDoc(theirFollowersRef, {
+          followedAt: new Date()
+        });
+        btn.textContent = "Unfollow";
+        sendFollowNotification(targetId);
+      }
+    };
+  } else {
+    btn.style.display = "none";
+  }
+}
 
 document.getElementById("followSearch").addEventListener("input", (e) => {
   const term = e.target.value.toLowerCase();
@@ -672,17 +682,17 @@ async function loadUserMentionedTweets(uid) {
   }
 
   const snap = await getDocs(q);
-mloadMore.style.display = "none"; 
+  mloadMore.style.display = "none";
 
-if (snap.empty && mentionedLoadedCount === 0) {
-  usermentionedList.innerHTML = `<div style="display:flex;justify-content:center;opacity:0.2;"><img style="height:250px;width:250px;" src="image/404.png"></div>`;
-  return;
-}
+  if (snap.empty && mentionedLoadedCount === 0) {
+    usermentionedList.innerHTML = `<div style="display:flex;justify-content:center;opacity:0.2;"><img style="height:250px;width:250px;" src="image/404.png"></div>`;
+    return;
+  }
 
-if (snap.docs.length >= MENTIONED_PAGE_SIZE) {
-  mloadMore.style.display = "block";
-  mentionedLastVisibleDoc = snap.docs[snap.docs.length - 1];
-}
+  if (snap.docs.length >= MENTIONED_PAGE_SIZE) {
+    mloadMore.style.display = "block";
+    mentionedLastVisibleDoc = snap.docs[snap.docs.length - 1];
+  }
 
   for (const mentionDoc of snap.docs) {
     const tweetId = mentionDoc.id;
@@ -736,7 +746,10 @@ document.getElementById("userInput").addEventListener("input", () => {
 
       const tweet = tweetDoc.data();
       if ((tweet.text || "").toLowerCase().includes(keyword)) {
-        matched.push({ tweetId, tweet });
+        matched.push({
+          tweetId,
+          tweet
+        });
       }
     }
 
@@ -752,8 +765,15 @@ document.getElementById("userInput").addEventListener("input", () => {
       listContainer.innerHTML = `<div style="display:flex;justify-content:center;opacity:0.2;"><img style="height:250px;width:250px;" src="image/404.png"></div>`;
     } else {
       const userDoc = await getDoc(doc(db, "users", targetUid));
-      const userData = { ...userDoc.data(), uid: targetUid };
-      for (const { tweetId, tweet } of matched) {
+      const userData = {
+        ...userDoc.data(),
+        uid: targetUid
+      };
+      for (const {
+          tweetId,
+          tweet
+        }
+        of matched) {
         await renderTweet(tweet, tweetId, userData, "append", listContainer);
       }
     }
