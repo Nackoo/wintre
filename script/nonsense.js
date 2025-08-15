@@ -6,7 +6,6 @@ const usersub = document.getElementById('userSubOverlay');
 const tag = document.getElementById('tagSubOverlay');
 const follow = document.getElementById('followOverlay');
 const viewer = document.getElementById('tweetViewer');
-const profileInput = document.getElementById('profileInput');
 const tweet = document.getElementById('tweetOverlay');
 const retweet = document.getElementById('retweetOverlay');
 const notification = document.getElementById('notificationOverlay');
@@ -61,8 +60,6 @@ const filledIconMap = {
 const clickHandler = (clickedIcon) => {
   return () => {
     panelsToHide.forEach(p => p?.classList.add('hidden'));
-    profileInput.value = '';
-    document.getElementById('profileInput').dispatchEvent(new Event('input'));
     filledIcons.forEach(icon => icon?.classList.add('hidden'));
     Object.values(outlineIcons).forEach(icon => icon?.classList.remove('hidden'));
     outlineIcons[clickedIcon]?.classList.add('hidden');
@@ -78,7 +75,7 @@ Object.keys(outlineIcons).forEach(iconName => {
 });
 
 function hidebookmark() {
-  user.classList.add('hidden');
+  bookmark.classList.add('hidden');
   homesvg.classList.add('hidden');
   bookmarkfilled.classList.add('hidden');
   bookmarksvg.classList.remove('hidden');
@@ -91,8 +88,6 @@ function hideprofile() {
   homefilled.classList.remove('hidden');
   userfilled.classList.add('hidden');
   usersvg.classList.remove('hidden');
-  profileInput.value = '';
-  document.getElementById('profileInput').dispatchEvent(new Event('input'));
 }
 
 function hideuser() {
@@ -122,8 +117,6 @@ function hidenotif() {
 function closeUser() {
   usersub?.classList.add('hidden');
   user.classList.remove('hidden');
-  document.getElementById('userInput').value = '';
-  document.getElementById('userInput').dispatchEvent(new Event("input"));
 }
 
 document.body.addEventListener("click", async (e) => {
