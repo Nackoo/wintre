@@ -78,7 +78,7 @@ Object.keys(outlineIcons).forEach(iconName => {
 });
 
 function hidebookmark() {
-  document.querySelector('.useroverlay').classList.add('hidden');
+  user.classList.add('hidden');
   homesvg.classList.add('hidden');
   bookmarkfilled.classList.add('hidden');
   bookmarksvg.classList.remove('hidden');
@@ -96,7 +96,7 @@ function hideprofile() {
 }
 
 function hideuser() {
-  document.querySelector('#userOverlay').classList.add('hidden');
+  user.classList.add('hidden');
   homesvg.classList.add('hidden');
   homefilled.classList.remove('hidden');
   searchfilled.classList.add('hidden');
@@ -120,8 +120,58 @@ function hidenotif() {
 }
 
 function closeUser() {
-  document.querySelector('#userSubOverlay').classList.add('hidden');
-  document.querySelector('#userOverlay').classList.remove('hidden');
+  usersub?.classList.add('hidden');
+  user.classList.remove('hidden');
   document.getElementById('userInput').value = '';
   document.getElementById('userInput').dispatchEvent(new Event("input"));
 }
+
+document.body.addEventListener("click", async (e) => {
+  const userLink = e.target.closest(".user-link");
+  if (userLink && userLink.dataset.uid) {
+    const uid = userLink.dataset.uid;
+    if (uid) {
+      await window.openUserSubProfile(uid);
+      comment?.classList.add('hidden');
+      user?.classList.remove('hidden');
+      homefilled?.classList.add('hidden');
+      homesvg?.classList.remove('hidden');
+      searchsvg?.classList.add('hidden');
+      searchfilled?.classList.remove('hidden');
+      follow?.classList.add('hidden');
+      profile?.classList.add('hidden');
+      userfilled?.classList.add('hidden');
+      usersvg?.classList.remove('hidden');
+      notiffilled?.classList.add('hidden');
+      notifsvg?.classList.remove('hidden');
+      viewer?.classList.add('hidden');
+    }
+  }
+});
+
+document.body.addEventListener("click", async (e) => {
+  const tagLink = e.target.closest(".tag-link");
+  if (tagLink && tagLink.dataset.tag) {
+    const tag = tagLink.dataset.tag;
+    if (tag) {
+      await window.openTag(tag);
+      viewer?.classList.add('hidden');
+      profile?.classList.add('hidden');
+      usersub?.classList.add('hidden');
+      comment?.classList.add('hidden');
+      user?.classList.remove('hidden');
+      homefilled?.classList.add('hidden');
+      homesvg?.classList.remove('hidden');
+      userfilled?.classList.add('hidden');
+      usersvg?.classList.remove('hidden');
+      bookmarkfilled?.classList.add('hidden');
+      bookmarksvg?.classList.remove('hidden');
+      searchsvg?.classList.add('hidden');
+      searchfilled?.classList.remove('hidden');
+      follow?.classList.add('hidden');
+      notiffilled?.classList.add('hidden');
+      notifsvg?.classList.remove('hidden');
+      viewer?.classList.add('hidden');
+    }
+  }
+});
