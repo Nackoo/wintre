@@ -145,7 +145,7 @@
 .tab3 {
   position: relative;
   flex: 1;
-  padding: 10px;
+  padding: 15px;
   margin: 20px 0;
   border-radius: 0 !important;
   background: none !important;
@@ -412,4 +412,10 @@
   border-radius: 15px;
   font-size: 13px;
   color: white;
+}
+
+.user-box .tweet {
+  border-radius: 0 !important;
+  border: none !important;
+  border-bottom: var(--border) !important;
 }
