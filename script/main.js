@@ -48,9 +48,7 @@ document.querySelectorAll(".tab1").forEach(tab => {
 
 let followingLoadedOnce = false;
 
-import {
-  loadFollowingTweets
-} from "./timeline.js";
+import { loadFollowingTweets } from "./timeline.js";
 
 document.querySelectorAll(".tab").forEach(tab => {
   tab.addEventListener("click", async () => {
@@ -78,61 +76,56 @@ document.querySelectorAll(".tab").forEach(tab => {
   });
 });
 
-const userOverlay = document.getElementById("userOverlay");
-const profileSubOverlay = document.getElementById("profileSubOverlay");
-const followOverlay = document.getElementById('followOverlay');
-const excludedInput = [
-  userOverlay && userOverlay.querySelector('input[type="text"]'),
-  profileSubOverlay && profileSubOverlay.querySelector('input[type="text"]'),
-  followOverlay && followOverlay.querySelector('input[type="text"]')
-].filter(Boolean);
+const allowedCounterIds = ["tweetInput", "retweetText"];
+const maxLength = 300;
 
 document.body.addEventListener("input", (e) => {
   const t = e.target;
-  const isTextArea = t.tagName === "TEXTAREA";
-  const isTextInput = t.tagName === "INPUT" && t.type === "text";
+  const isText = t.tagName === "TEXTAREA" || (t.tagName === "INPUT" && t.type === "text");
 
-  if ((isTextArea || isTextInput) && !excludedInput.includes(t)) {
-    const maxLength = 300;
-
+  if (isText) {
     if (t.value.length > maxLength) {
       t.value = t.value.slice(0, maxLength);
     }
 
-    let counter = t.nextElementSibling;
-    if (!counter || !counter.classList.contains("char-counter")) {
-      counter = document.createElement("div");
-      counter.className = "char-counter";
-      Object.assign(counter.style, {
-        fontSize: "13px",
-        textAlign: "right",
-        color: "var(--color)",
-      });
-      t.parentNode.insertBefore(counter, t.nextSibling);
+    if (allowedCounterIds.includes(t.id)) {
+      let counter = t.nextElementSibling;
+      if (!counter || !counter.classList.contains("char-counter")) {
+        counter = document.createElement("div");
+        counter.className = "char-counter";
+        Object.assign(counter.style, {
+          fontSize: "13px",
+          textAlign: "right",
+          color: "var(--color)",
+        });
+        t.parentNode.insertBefore(counter, t.nextSibling);
+      }
+      counter.textContent = `${t.value.length}/${maxLength}`;
     }
-
-    counter.textContent = `${t.value.length}/${maxLength}`;
   }
 });
 
 document.body.addEventListener("paste", (e) => {
   const t = e.target;
-  const isTextArea = t.tagName === "TEXTAREA";
-  const isTextInput = t.tagName === "INPUT" && t.type === "text";
+  const isText = t.tagName === "TEXTAREA" || (t.tagName === "INPUT" && t.type === "text");
 
-  if ((isTextArea || isTextInput) && t !== excludedInput) {
+  if (isText) {
     e.preventDefault();
 
     const pasted = (e.clipboardData || window.clipboardData).getData("text");
     const current = t.value;
-    const {
-      selectionStart: start,
-      selectionEnd: end
-    } = t;
-    const maxInsert = 300 - (current.length - (end - start));
+    const { selectionStart: start, selectionEnd: end } = t;
+    const maxInsert = maxLength - (current.length - (end - start));
     const insertableText = pasted.slice(0, maxInsert);
 
     t.setRangeText(insertableText, start, end, "end");
+
+    if (allowedCounterIds.includes(t.id)) {
+      let counter = t.nextElementSibling;
+      if (counter && counter.classList.contains("char-counter")) {
+        counter.textContent = `${t.value.length}/${maxLength}`;
+      }
+    }
   }
 });
 
