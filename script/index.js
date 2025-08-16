@@ -1690,20 +1690,30 @@ document.body.addEventListener("click", async (e) => {
     return;
   }
 
-  const container = e.target.closest(".attachment, .attachment1, .rt-attachment, .attachment2");
+  const container = e.target.closest(".attachment, .rt-attachment, .attachment1, .attachment2");
   if (!container) return;
 
-  const img = [...container.querySelectorAll("img")].find(el => {
-    const src = (el.currentSrc || el.src || "");
-    const cleaned = src.split("#")[0].split("?")[0].toLowerCase();
-    return !cleaned.endsWith("/image/volume.svg") &&
-      !cleaned.endsWith("/image/volume-muted.svg");
-  });
+  let img;
+
+  if (
+    container.classList.contains("attachment1") ||
+    container.classList.contains("attachment2")
+  ) {
+    img = container;
+  } else {
+    img = [...container.querySelectorAll("img")].find(el => {
+      const src = (el.currentSrc || el.src || "");
+      const cleaned = src.split("#")[0].split("?")[0].toLowerCase();
+      return !cleaned.endsWith("/image/volume.svg") &&
+             !cleaned.endsWith("/image/volume-muted.svg");
+    });
+  }
 
   if (img) {
     overlay.classList.remove("hidden");
     overlayContent.innerHTML = `<img src="${img.src}" />`;
   }
+
 });
 
 async function loadReplies(tweetId, commentId) {
