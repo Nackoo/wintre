@@ -334,7 +334,7 @@ export async function fetchTags(term) {
 
     const item = document.createElement("div");
     item.className = "tag-search-item";
-    item.innerHTML = `<div style="display:flex;align-items:center"><strong style="color:var(--color)">#${tagId}</strong> <p style="color:var(--color);margin-left:auto">${tweetCount} wints</p></div>`;
+    item.innerHTML = `<div style="display:flex;align-items:center"><strong style="color:#00ba7c;">#${tagId}</strong> <p style="color:var(--color);margin-left:auto">${tweetCount} wints</p></div>`;
     item.style.cssText = "border-bottom:var(--border);cursor:pointer;";
     item.onclick = () => {
       openTag(tag.id);
