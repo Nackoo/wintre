@@ -102,7 +102,7 @@
   <div id="userOverlay" class="useroverlay hidden">
     <div class="user-box">
       <br>
-      <header style="display: flex; gap: 15px;padding-bottom:15px">
+      <header style="display: flex; gap: 15px;padding:15px 0">
         <button onclick="hideuser()" style="background: none;"><img src="image/x.svg"></button>
         <input type="text" placeholder="search anything"></input>
       </header>
@@ -240,6 +240,7 @@
             <button id="sendComment">Post</button>
             <label class="custom-file-btn" for="commentMediaInput"><img src="image/upload.svg"></label>
             <input type="file" id="commentMediaInput" class="comment-media-input hidden-input" accept="image/*" />
+            <button style="margin-left:auto" class="cancel-comment-btn no-bg">Cancel</button>
           </div>
           <div id="commentList"></div>
           <div class="flex">
