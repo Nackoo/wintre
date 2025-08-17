@@ -397,7 +397,7 @@ async function loadUserMentionedTweets(uid) {
   const snap = await getDocs(q);
 
   if (snap.empty && mentionedLoadedCount === 0) {
-    usermentionedList.innerHTML = `<div style="display:flex;justify-content:center;opacity:0.2;" id="start1"><img style="height:250px;width:250px;" src="image/404.png"></div>`;
+    usermentionedList.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
     mloadMore.style.display = "none";
     return;
   } else {
