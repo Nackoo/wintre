@@ -425,3 +425,8 @@
   border: none !important;
   border-bottom: var(--border) !important;
 }
+
+.user-box .retweet {
+  border-radius: 15px !important;
+  border: var(--border) !important;
+}
