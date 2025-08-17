@@ -235,13 +235,13 @@ async function fetchUsers(reset = false) {
 
     const item = document.createElement("div");
     item.className = "user-search-item";
-    item.style.cssText = "display:flex;gap:10px;padding:15px;border-bottom:var(--border);align-items:center";
+    item.style.cssText = "display:flex;gap:10px;padding:15px 0 10px 0;border-bottom:var(--border);align-items:center";
 
     item.innerHTML = `
 <img src="${data.photoURL}" onerror="this.src='image/default-avatar.jpg'"
      style="width:40px;height:40px;border-radius:50%;object-fit:cover;align-self:flex-start;">
 <div style="flex:1">
-  <div style="display:flex;align-items:center;margin-bottom:10px;">
+  <div style="display:flex;align-items:center;">
     <strong style="cursor:pointer;">${escapeHTML(data.displayName || "Unnamed")}</strong>
     <button class="mini-follow-btn"
             style="padding:0 10px;border-radius:50px;background:white;height:26px;cursor:pointer;border:1px solid var(--border);margin-left:auto;">
@@ -543,7 +543,7 @@ async function loadFollowUsers(type, userId, searchTerm = "") {
 
     const item = document.createElement("div");
     item.className = "user-search-item";
-    item.style.cssText = "display:flex;gap:10px;padding:10px;border-bottom:var(--border);align-items:center";
+    item.style.cssText = "display:flex;gap:10px;padding:10px 0;border-bottom:var(--border);align-items:center";
     item.innerHTML = `
     <div style="display:flex;gap:15px;align-items:center;flex:1;">
     <img src="${data.photoURL}" onerror="this.src='image/default-avatar.jpg'"
