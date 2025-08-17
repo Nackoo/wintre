@@ -439,7 +439,7 @@ window.openTag = async function(tagId) {
   const tweetList = document.getElementById("tagstweet");
 
   tagOverlay.classList.remove("hidden");
-  tweetList.innerHTML = `<p style="color:gray;">loading...</p>`;
+  tweetList.innerHTML = ``;
   tagName.textContent = `#${tagId}`;
 
   const tagTweetsRef = collection(db, "tags", tagId, "tweets");
