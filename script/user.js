@@ -1,4 +1,4 @@
-import { db, collection, query, where, getDocs, orderBy, limit, auth, getDoc, doc, setDoc, deleteDoc, startAfter } from "./firebase.js";
+import { db, collection, query, where, getDocs, orderBy, limit, auth, getDoc, doc, setDoc, deleteDoc, startAfter, updateDoc, increment } from "./firebase.js";
 import { renderTweet } from './index.js';
 import { sendFollowNotification } from "./notification.js";
 
@@ -271,21 +271,13 @@ export async function fetchTags(term) {
 
   const tagsRef = collection(db, "tags");
 
-  let snap;
-
   if (!term || term.length < 1) {
-
     const allTagsSnap = await getDocs(tagsRef);
 
-    const tagCounts = await Promise.all(
-      allTagsSnap.docs.map(async (docSnap) => {
-        const tweetSnap = await getDocs(collection(db, "tags", docSnap.id, "tweets"));
-        return {
-          id: docSnap.id,
-          count: tweetSnap.size
-        };
-      })
-    );
+    const tagCounts = allTagsSnap.docs.map(docSnap => ({
+      id: docSnap.id,
+      count: docSnap.data().tweetCount || 0
+    }));
 
     const topTags = tagCounts
       .filter(tag => tag.count > 0)
@@ -302,10 +294,7 @@ export async function fetchTags(term) {
       item.className = "tag-search-item";
       item.innerHTML = `<div style="display:flex;align-items:center;"><strong style="color:#00ba7c;">#${tag.id}</strong> <p style="color:var(--color);margin-left:auto">${tag.count} wints</p></div>`;
       item.style.cssText = "border-bottom:var(--border);cursor:pointer;";
-      item.onclick = () => {
-        openTag(tag.id);
-      };
-
+      item.onclick = () => openTag(tag.id);
       tagsView.appendChild(item);
     }
 
@@ -317,29 +306,22 @@ export async function fetchTags(term) {
     where("name", ">=", term),
     where("name", "<=", term + "\uf8ff")
   );
-  snap = await getDocs(q);
+  const snap = await getDocs(q);
 
   if (snap.empty) {
     tagsView.innerHTML = `<div style="display:flex;justify-content:center;opacity:0.2;"><img style="height:250px;width:250px;" src="image/404.png"></div>`;
     return;
   }
 
-  const searchTags = snap.docs.slice(0, 10);
-
-  for (const tagDoc of snap.docs) {
+  for (const tagDoc of snap.docs.slice(0, 10)) {
     const tagId = tagDoc.id;
-
-    const tweetSnap = await getDocs(collection(db, "tags", tagId, "tweets"));
-    const tweetCount = tweetSnap.size;
+    const tweetCount = tagDoc.data().tweetCount || 0;
 
     const item = document.createElement("div");
     item.className = "tag-search-item";
     item.innerHTML = `<div style="display:flex;align-items:center"><strong style="color:#00ba7c;">#${tagId}</strong> <p style="color:var(--color);margin-left:auto">${tweetCount} wints</p></div>`;
     item.style.cssText = "border-bottom:var(--border);cursor:pointer;";
-    item.onclick = () => {
-      openTag(tag.id);
-    };
-
+    item.onclick = () => openTag(tagId);
     tagsView.appendChild(item);
   }
 }
@@ -393,7 +375,6 @@ async function openUserSubProfile(uid) {
 
   if (uid === currentUserId) {
     followBtn.style.display = "none";
-    return;
   }
 
   followBtn.style.display = "inline-block";
@@ -411,6 +392,13 @@ async function openUserSubProfile(uid) {
 
       await deleteDoc(myFollowingRef);
       await deleteDoc(theirFollowersRef);
+      await updateDoc(doc(db, "users", currentUserId), {
+        following: increment(-1)
+      });
+      await updateDoc(doc(db, "users", uid), {
+        followers: increment(-1)
+      });
+
       followBtn.textContent = "Follow";
     } else {
 
@@ -420,20 +408,28 @@ async function openUserSubProfile(uid) {
       await setDoc(theirFollowersRef, {
         followedAt: new Date()
       });
+      await updateDoc(doc(db, "users", currentUserId), {
+        following: increment(1)
+      });
+      await updateDoc(doc(db, "users", uid), {
+        followers: increment(1)
+      });
+
       followBtn.textContent = "Unfollow";
       sendFollowNotification(uid);
     }
+
   };
 
-  const followersSnap = await getDocs(collection(db, "users", uid, "followers"));
-  const followingSnap = await getDocs(collection(db, "users", uid, "following"));
   const userSnap = await getDoc(doc(db, "users", uid));
   const userData = userSnap.data();
   const postCount = userData?.posts || 0;
+  const followerCount = userData?.followers || 0;
+  const followingCount = userData?.following || 0;
 
   document.getElementById("posts").textContent = `${postCount}`;
-  document.getElementById("followers").textContent = `${followersSnap.size}`;
-  document.getElementById("following").textContent = `${followingSnap.size}`;
+  document.getElementById("followers").textContent = `${followerCount}`;
+  document.getElementById("following").textContent = `${followingCount}`;
 }
 
 window.openUserSubProfile = openUserSubProfile;
@@ -507,7 +503,7 @@ followOverlay.innerHTML = `
     <div id="followList"></div>
   </div>`;
 document.body.appendChild(followOverlay);
-window.followOverlay = followOverlay; 
+window.followOverlay = followOverlay;
 
 async function openFollowOverlay(type, userId, isMe) {
   document.getElementById("followOverlay").classList.remove("hidden");
@@ -610,17 +606,35 @@ async function setupMiniFollowBtn(btn, targetId) {
       if (isNowFollowing) {
         await deleteDoc(myFollowingRef);
         await deleteDoc(theirFollowersRef);
+
+        await updateDoc(doc(db, "users", currentUid), {
+          following: increment(-1)
+        });
+        await updateDoc(doc(db, "users", targetId), {
+          followers: increment(-1)
+        });
+
         btn.textContent = "Follow";
       } else {
+
         await setDoc(myFollowingRef, {
           followedAt: new Date()
         });
         await setDoc(theirFollowersRef, {
           followedAt: new Date()
         });
+
+        await updateDoc(doc(db, "users", currentUid), {
+          following: increment(1)
+        });
+        await updateDoc(doc(db, "users", targetId), {
+          followers: increment(1)
+        });
+
         btn.textContent = "Unfollow";
         sendFollowNotification(targetId);
       }
+
     };
   } else {
     btn.style.display = "none";
