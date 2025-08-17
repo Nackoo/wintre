@@ -18,12 +18,10 @@ service cloud.firestore {
       allow read: if true;
       allow create, update: if request.auth != null;
 
-      match /tweets/{tweetId} {
-        allow read: if true;
-        allow create: if request.auth != null;
-        allow delete: if request.auth != null &&
-          exists(/databases/$(database)/documents/tweets/$(tweetId)) &&
-          request.auth.uid == get(/databases/$(database)/documents/tweets/$(tweetId)).data.uid;
+    match /tweets/{tweetId} {
+      allow read: if true;
+      allow create, update: if request.auth != null;
+      allow delete: if request.auth != null;
       }
     }
 
@@ -37,9 +35,11 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if true;
       allow update: if request.auth != null &&
-        request.auth.uid == userId &&
+        ((request.auth.uid == userId &&
         request.writeFields.size() == 1 &&
-        request.writeFields.hasOnly(["posts"]);
+        request.writeFields.hasOnly(["posts"])) ||
+        (request.writeFields.size() == 1 &&
+        request.writeFields.hasOnly(["followers"])));
       allow write: if request.auth != null && request.auth.uid == userId;
 
       // Mentions
@@ -84,21 +84,18 @@ service cloud.firestore {
       allow create: if request.auth != null &&
         request.resource.data.uid == request.auth.uid;
       allow update: if request.auth != null &&
-      (
-        // Allow updating likeCount
-        (request.writeFields.size() == 1 &&
+        ((request.writeFields.size() == 1 &&
         request.writeFields.hasOnly(['likeCount'])) ||
-        
-        // Allow updating viewCount 
         (request.writeFields.size() == 1 &&
         request.writeFields.hasOnly(['viewCount']) &&
         request.resource.data.viewCount == resource.data.viewCount + 1) ||
-
-        // Allow tweet owner to update pinnedCommentId
         (request.auth.uid == resource.data.uid &&
         request.writeFields.size() == 1 &&
-        request.writeFields.hasOnly(['pinnedCommentId']))
-      );
+        request.writeFields.hasOnly(['pinnedCommentId'])) ||
+        (request.writeFields.size() == 1 &&
+        request.writeFields.hasOnly(['commentCount'])) ||
+        (request.writeFields.size() == 1 &&
+        request.writeFields.hasOnly(['retweetCount'])));
       allow delete: if request.auth != null &&
         request.auth.uid == resource.data.uid;
 
@@ -108,7 +105,7 @@ service cloud.firestore {
         allow create: if request.auth != null && request.auth.uid == userId;
         allow delete: if request.auth != null &&
           (request.auth.uid == userId ||
-           request.auth.uid == get(/databases/$(database)/documents/tweets/$(tweetId)).data.uid);
+          request.auth.uid == get(/databases/$(database)/documents/tweets/$(tweetId)).data.uid);
       }
 
       // Views
@@ -117,7 +114,7 @@ service cloud.firestore {
         allow create: if request.auth != null && request.auth.uid == userId;
         allow delete: if request.auth != null &&
           (request.auth.uid == userId ||
-           request.auth.uid == get(/databases/$(database)/documents/tweets/$(tweetId)).data.uid);
+          request.auth.uid == get(/databases/$(database)/documents/tweets/$(tweetId)).data.uid);
       }
 
       // Comments and subcollections
@@ -125,35 +122,47 @@ service cloud.firestore {
         allow read: if true;
         allow create: if request.auth != null &&
           request.resource.data.uid == request.auth.uid;
-        allow update, delete: if request.auth != null &&
+        allow update: if request.auth != null && (
+          (request.writeFields.size() == 1 &&
+          request.writeFields.hasOnly(['likeCount'])) ||
+          (request.writeFields.size() == 1 &&
+          request.writeFields.hasOnly(['replyCount'])) ||
           (request.auth.uid == resource.data.uid ||
+          request.auth.uid == get(/databases/$(database)/documents/tweets/$(tweetId)).data.uid));
+        allow delete: if request.auth != null &&
+          (request.auth.uid == resource.data.uid ||
+          request.auth.uid == get(/databases/$(database)/documents/tweets/$(tweetId)).data.uid);
+
+       // Comment likes
+       match /likes/{userId} {
+         allow read: if true;
+         allow create: if request.auth != null && request.auth.uid == userId;
+         allow delete: if request.auth != null &&
+           (request.auth.uid == userId ||
+           request.auth.uid == get(/databases/$(database)/documents/tweets/$(tweetId)).data.uid);
+       }
+
+       // Replies and subcollections
+       match /replies/{replyId} {
+         allow read: if true;
+         allow create: if request.auth != null &&
+           request.resource.data.uid == request.auth.uid;
+         allow update: if request.auth != null && (
+           (request.writeFields.size() == 1 &&
+           request.writeFields.hasOnly(['likeCount'])) ||
+           (request.auth.uid == resource.data.uid ||
+           request.auth.uid == get(/databases/$(database)/documents/tweets/$(tweetId)).data.uid));
+         allow delete: if request.auth != null &&
+           (request.auth.uid == resource.data.uid ||
            request.auth.uid == get(/databases/$(database)/documents/tweets/$(tweetId)).data.uid);
 
-        // Comment likes
+        // Reply likes
         match /likes/{userId} {
           allow read: if true;
           allow create: if request.auth != null && request.auth.uid == userId;
           allow delete: if request.auth != null &&
             (request.auth.uid == userId ||
-             request.auth.uid == get(/databases/$(database)/documents/tweets/$(tweetId)).data.uid);
-        }
-
-        // Replies and subcollections
-        match /replies/{replyId} {
-          allow read: if true;
-          allow create: if request.auth != null &&
-            request.resource.data.uid == request.auth.uid;
-          allow update, delete: if request.auth != null &&
-            (request.auth.uid == resource.data.uid ||
-             request.auth.uid == get(/databases/$(database)/documents/tweets/$(tweetId)).data.uid);
-
-          // Reply likes
-          match /likes/{userId} {
-            allow read: if true;
-            allow create: if request.auth != null && request.auth.uid == userId;
-            allow delete: if request.auth != null &&
-              (request.auth.uid == userId ||
-               request.auth.uid == get(/databases/$(database)/documents/tweets/$(tweetId)).data.uid);
+            request.auth.uid == get(/databases/$(database)/documents/tweets/$(tweetId)).data.uid);
           }
         }
       }
