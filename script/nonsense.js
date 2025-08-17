@@ -125,6 +125,7 @@ document.body.addEventListener("click", async (e) => {
     const uid = userLink.dataset.uid;
     if (uid) {
       await window.openUserSubProfile(uid);
+      document.getElementById('followOverlay')?.classList.add('hidden');
       comment?.classList.add('hidden');
       user?.classList.remove('hidden');
       homefilled?.classList.add('hidden');
@@ -137,7 +138,6 @@ document.body.addEventListener("click", async (e) => {
       notiffilled?.classList.add('hidden');
       notifsvg?.classList.remove('hidden');
       viewer?.classList.add('hidden');
-      follow?.classList.add('hidden')
     }
   }
 });
