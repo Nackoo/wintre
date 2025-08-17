@@ -177,6 +177,7 @@ service cloud.firestore {
 |---------------------|--------------|-------------------------------|
 | allow_public_read   | anon         | `(bucket_id = 'wints'::text)` |
 | allow_public_upload | anon         | `(bucket_id = 'wints'::text)` |
+| allow_public_delete | anon         | `(bucket_id = 'wints'::text)` |
 
 <hr>
 
