@@ -446,7 +446,7 @@ window.openTag = async function(tagId) {
   const tagTweetDocs = await getDocs(tagTweetsRef);
 
   if (tagTweetDocs.empty) {
-    tweetList.innerHTML = `<p>no wint found</p>`;
+    tweetList.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="image/404.gif"></div><h4 style="text-align:center;">the Wynt was previously deleted :/</h4>`;
     return;
   }
 
