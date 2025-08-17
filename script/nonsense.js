@@ -131,14 +131,13 @@ document.body.addEventListener("click", async (e) => {
       homesvg?.classList.remove('hidden');
       searchsvg?.classList.add('hidden');
       searchfilled?.classList.remove('hidden');
-      follow?.classList.add('hidden');
       profile?.classList.add('hidden');
       userfilled?.classList.add('hidden');
       usersvg?.classList.remove('hidden');
       notiffilled?.classList.add('hidden');
       notifsvg?.classList.remove('hidden');
       viewer?.classList.add('hidden');
-      follow?.classList.add('hidden');
+      follow?.classList.add('hidden')
     }
   }
 });
@@ -162,7 +161,6 @@ document.body.addEventListener("click", async (e) => {
       bookmarksvg?.classList.remove('hidden');
       searchsvg?.classList.add('hidden');
       searchfilled?.classList.remove('hidden');
-      follow?.classList.add('hidden');
       notiffilled?.classList.add('hidden');
       notifsvg?.classList.remove('hidden');
       viewer?.classList.add('hidden');
