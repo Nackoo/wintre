@@ -2,121 +2,14 @@ import { app, auth, db, storage, initializeApp, getAuth, increment, onAuthStateC
 import { extractMentions } from './mention.js';
 import { handleTags } from './tags.js';
 import { sendCommentNotification, sendReplyNotification, listenForUnreadNotifications, loadNotifications, sendMentionNotification, sendRetweetNotification, sendReplyMentionNotification, sendCommentMentionNotification } from './notification.js';
-import { createClient, SUPABASE_URL, SUPABASE_ANON_KEY, MAX_FILE_BYTES, supabase } from "./firebase.js"
+import { createClient, SUPABASE_URL, SUPABASE_ANON_KEY, MAX_FILE_BYTES, supabase } from "./firebase.js";
+import { uploadToSupabase, compressImageTo480, showImagePreview, readFileAsBase64 } from "./attachments.js";
 
 let lastTweet = null;
 let loadingMore = false;
 let noMoreTweets = false;
 
 let isOnline = navigator.onLine;
-
-async function uploadToSupabase(file, uid) {
-  if (!file) return {
-    url: "",
-    type: ""
-  };
-
-  if (file.type.startsWith("image/")) {
-    const compressedBase64 = await compressImageTo480(file);
-
-    const base64Size = Math.ceil((compressedBase64.length * 3) / 4);
-    if (base64Size > 3 * 1024 * 1024) {
-      alert("Image is too large after compression (max 3MB).");
-      return {
-        url: "",
-        type: ""
-      };
-    }
-    return {
-      url: compressedBase64,
-      type: "image"
-    };
-  }
-
-  if (file.type.startsWith("video/")) {
-    if (file.size > 3 * 1024 * 1024) {
-      alert("Video exceeds 3MB. Please upload a smaller file.");
-      return {
-        url: "",
-        type: ""
-      };
-    }
-
-    const {
-      data,
-      error
-    } = await supabase.storage
-      .from("wints")
-      .upload(`wints/${uid}-${Date.now()}`, file, {
-        upsert: true
-      });
-
-    if (error) {
-      console.error("Video upload error:", error);
-      return {
-        url: "",
-        type: ""
-      };
-    }
-
-    const {
-      data: publicUrlData
-    } = supabase.storage.from("wints").getPublicUrl(data.path);
-    return {
-      url: publicUrlData.publicUrl,
-      type: "video"
-    };
-  }
-
-  alert("Unsupported file type.");
-  return {
-    url: "",
-    type: ""
-  };
-}
-
-async function compressImageTo480(file) {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        const scale = 480 / img.width;
-        canvas.width = 480;
-        canvas.height = img.height * scale;
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL("image/jpeg", 0.7));
-      };
-      img.src = e.target.result;
-    };
-    reader.readAsDataURL(file);
-  });
-}
-
-function showImagePreview(input, previewElementId) {
-  const file = input.files[0];
-  const preview = document.getElementById(previewElementId);
-
-  preview.innerHTML = "";
-
-  if (file) {
-    const reader = new FileReader();
-    reader.onload = e => {
-      if (file.type.startsWith("video/")) {
-        preview.innerHTML = `
-<video controls class="attachment">
-  <source src="${e.target.result}">
-</video>`;
-      } else {
-        preview.innerHTML = `
-<img src="${e.target.result}" class="attachment">`;
-      }
-    };
-    reader.readAsDataURL(file);
-  }
-}
 
 window.addEventListener("offline", () => {
   isOnline = false;
@@ -239,48 +132,6 @@ function formatDate(timestamp) {
   return `${day}/${month}/${year}`;
 }
 
-function resizeImage(file, maxWidth = 800, maxHeight = 800) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      img.src = reader.result;
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      let width = img.width;
-      let height = img.height;
-
-      if (width > maxWidth || height > maxHeight) {
-        const ratio = Math.min(maxWidth / width, maxHeight / height);
-        width = width * ratio;
-        height = height * ratio;
-      }
-
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(img, 0, 0, width, height);
-      resolve(canvas.toDataURL("image/jpeg", 0.85));
-    };
-
-    img.onerror = reject;
-  });
-}
-
-function readFileAsBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(reader.error);
-    reader.onload = () => resolve(reader.result);
-    reader.readAsDataURL(file);
-  });
-}
-
 document.getElementById("postBtn").addEventListener("click", async () => {
   const btn = document.getElementById("postBtn");
   btn.disabled = true;
@@ -303,7 +154,7 @@ document.getElementById("postBtn").addEventListener("click", async () => {
       if (now < cooldownTime) {
         const diffMs = cooldownTime - now;
         const diffMins = Math.ceil(diffMs / 60000);
-        alert(`Cooldown resets in ${diffMins} minute${diffMins> 1 ? 's' : ''}`);
+        alert(`Cooldown resets in ${diffMins} minute${diffMins > 1 ? 's' : ''}`);
         btn.disabled = false;
         btn.classList.remove('disabled');
         return;
@@ -324,12 +175,14 @@ document.getElementById("postBtn").addEventListener("click", async () => {
 
   let mediaURL = "";
   let mediaType = "";
+  let mediaPath = ""; 
 
   try {
     if (file) {
       const upload = await uploadToSupabase(file, user.uid);
       mediaURL = upload.url;
       mediaType = upload.type;
+      mediaPath = upload.path || ""; 
     }
 
     if (!text && !mediaURL) {
@@ -349,13 +202,12 @@ document.getElementById("postBtn").addEventListener("click", async () => {
       text,
       media: mediaURL,
       mediaType,
+      mediaPath,          
       createdAt: new Date(),
       uid: user.uid,
       tags,
       replyPermission: permission,
-      ...(mentions.length > 0 && {
-        mentions
-      })
+      ...(mentions.length > 0 && { mentions })
     });
 
     await Promise.all(
@@ -370,9 +222,7 @@ document.getElementById("postBtn").addEventListener("click", async () => {
     );
 
     await handleTags(text, tweetRef.id);
-    await setDoc(doc(db, "users", user.uid, "posts", tweetRef.id), {
-      exists: true
-    });
+    await setDoc(doc(db, "users", user.uid, "posts", tweetRef.id), { exists: true });
     await updateDoc(userRef, {
       posts: increment(1),
       cooldown: new Date(Date.now() + 15 * 60 * 1000)
@@ -953,6 +803,16 @@ document.body.addEventListener("click", async (e) => {
   if (!tweetSnap.exists()) return;
   const data = tweetSnap.data();
 
+  if (data.mediaType === "video" && data.mediaPath) {
+    try {
+      const { error } = await supabase.storage.from("wints").remove([data.mediaPath]);
+      if (error) console.error("Error deleting video from Supabase:", error);
+      else console.log("Video deleted from Supabase:", data.mediaPath);
+    } catch (err) {
+      console.error("Failed to delete video:", err);
+    }
+  }
+
   await deleteSubcollectionDocs(tweetId, "comments");
   await deleteSubcollectionDocs(tweetId, "likes");
   await deleteSubcollectionDocs(tweetId, "views");
@@ -965,9 +825,7 @@ document.body.addEventListener("click", async (e) => {
 
   await deleteDoc(tweetRef);
   await deleteDoc(doc(db, "users", userId, "posts", tweetId));
-  await updateDoc(doc(db, "users", userId), {
-    posts: increment(-1)
-  });
+  await updateDoc(doc(db, "users", userId), { posts: increment(-1) });
 
   const el = document.getElementById("tweet-" + tweetId);
   if (el) el.remove();
@@ -1195,6 +1053,7 @@ document.body.addEventListener("click", async (e) => {
       const tweetDoc = await getDoc(doc(db, "tweets", tweetId));
       const tweetOwnerId = tweetDoc.exists() ? tweetDoc.data().uid : null;
       const sendBtn = document.getElementById("sendComment");
+      const preview = document.getElementById("commentPreview");
       sendBtn.disabled = true;
       sendBtn.classList.add("disabled");
 
@@ -1209,7 +1068,7 @@ document.body.addEventListener("click", async (e) => {
 
         if (file) {
           mediaType = "image";
-          media = await resizeImage(file);
+          media = await compressImageTo480(file);
           if (media.length > 1048487) {
             alert("Image is too large.");
             sendBtn.disabled = false;
@@ -1244,6 +1103,7 @@ document.body.addEventListener("click", async (e) => {
           await sendCommentNotification(tweetId, commentText);
 
           commentInput.value = "";
+          preview.innerHTM = "";
           fileInput.value = "";
 
           await loadComments(tweetId);
@@ -1415,28 +1275,25 @@ async function loadComments(tweetId) {
                       <div class="user-link" data-uid="${d.uid}" style="cursor:pointer; ${d.uid}">
                         @${escapeHTML(displayName)}
                       </div>
+                      ${likedByCreator ? `<div style="height:24px;width:24px;" title="liked by the creator"><img src="image/liked.svg"></div>` : ""}
                       <span class="comment-date">${formatDate(d.createdAt)}</span>
                     </div>
                     <div class="comment-body">
-                      <div class="flex">
-                        <p class="no-margin">${await parseMentionsToLinks(d.text)}</p>
-                        <span class="comment-like-btn" data-id="${commentId}" data-tweet="${tweetId}" style="cursor:pointer;margin-left:auto;display:flex;align-items:center;gap:3px;">
+                      <p class="no-margin">${await parseMentionsToLinks(d.text)}</p>
+                      ${d.media && d.mediaType === "image" ? `<img src="${d.media}" class="attachment1" style="max-width:100%;max-height:200px;margin-bottom:5px;border-radius:8px">` : ""}
+                      <div class="flex" style="margin:0;gap:13px;">
+                        <span class="comment-like-btn" data-id="${commentId}" data-tweet="${tweetId}" style="cursor:pointer;display:flex;align-items:center;gap:3px;">
                           ${isCommentLiked ? `<img src="image/filled-heart.svg" style="width:16px;height:16px;">` : `<img src="image/heart.svg" style="width:16px;height:16px;">`}
                           <span id="comment-like-count-${commentId}">${commentLikeCount}</span>
                         </span>
-                        ${auth.currentUser.uid === d.uid ? `
-                        <span class="comment-delete-btn" data-id="${commentId}" data-tweet="${tweetId}" style="cursor:pointer;"><img src="image/trash.svg"></span>` : ""}
-                      </div>
-                      ${d.media && d.mediaType === "image" ? `<img src="${d.media}" class="attachment1" style="max-width:100%;max-height:200px;margin-bottom:5px;border-radius:8px">` : ""}
-                      <div class="flex" style="width:fit-content;margin:0;gap:11px;">
                         <div class="reply-actions">${replyButtonHTML}</div>
-                        ${likedByCreator ? `
-                        <div style="color:#f91880;font-size:14px;">liked by the creator</div>` : ""}
                         <div class="pin-comment-btn" style="display:none;">
-                          <button style="margin-left:auto; cursor:pointer; background:none; border:none; color:gray; font-size:13px;">
+                        <button style="cursor:pointer; background:none; border:none; color:gray; font-size:13px; padding:0;">
                             pin
-                          </button>
+                        </button>
                         </div>
+                        ${auth.currentUser.uid === d.uid ? `
+                        <span class="comment-delete-btn" data-id="${commentId}" data-tweet="${tweetId}" style="cursor:pointer;margin-left:auto;"><img src="image/trash.svg"></span>` : ""}
                       </div>
                       <div class="reply-box hidden" id="reply-box-${commentId}">
                         <textarea class="reply-text" placeholder="thoughts...?"></textarea>
@@ -1560,6 +1417,15 @@ document.addEventListener("click", (e) => {
   }
 });
 
+function clearcomment() {
+  const commentpreview = document.getElementById('commentPreview');
+  commentpreview.innerHTML = '';
+  const commentinput = document.getElementById('commentInput');
+  commentinput.value = '';
+  const commentMediaInput = document.getElementById('commentMediaInput');
+  commentMediaInput.value = '';
+}
+
 document.body.addEventListener("click", async (e) => {
 
   const toggleRepliesBtn = e.target.closest(".toggle-replies-btn");
@@ -1612,7 +1478,7 @@ document.body.addEventListener("click", async (e) => {
         mediaType = "";
       if (file) {
         mediaType = "image";
-        media = await resizeImage(file);
+        media = await compressImageTo480(file);
         if (media.length > 1048487) {
           alert("Image is too large.");
           sendReplyBtn.disabled = false;
@@ -1670,8 +1536,25 @@ document.body.addEventListener("click", async (e) => {
     }
   }
 
+  const closecomment = e.target.closest("#closeComment");
+  if (closecomment) {
+    const commentOverlay = document.getElementById('commentOverlay');
+    commentOverlay.classList.add ('hidden');
+    clearcomment();
+  }
+
+  const cancelcommentbtn = e.target.closest(".cancel-comment-btn");
+  if (cancelcommentbtn) {
+    clearcomment();
+  }
+
   const cancelReplyBtn = e.target.closest(".cancel-reply-btn");
   if (cancelReplyBtn) {
+    const commentId = e.target.closest(".reply-box").id.replace("reply-box-", "");
+    const replypreview = document.getElementById(`replyPreview-${commentId}`);
+    const replyMedia = document.getElementById(`replyMedia-${commentId}`);
+    replyMedia.value = '';
+    replypreview.innerHTML = '';
     const box = e.target.closest(".reply-box");
     box.classList.add("hidden");
     const toggleBtn = box.parentElement.querySelector(".toggle-replies-btn");
@@ -1787,13 +1670,13 @@ async function loadReplies(tweetId, commentId) {
       </div>
       <span class="reply-date">${formatDate(r.createdAt)}</span>
     </div>
-    <p class="little-margin">${await parseMentionsToLinks(r.text)}</p>
+    <p class="little-margin" style="flex:1">${await parseMentionsToLinks(r.text)}</p>
     ${r.media && r.mediaType === "image" ? `<img src="${r.media}" class="attachment1" style="max-width:100%;max-height:200px;margin-bottom:5px;border-radius:8px">` : ""}
     <div class="flex">
-      <span class="reply-like-btn" data-reply="${rId}" data-comment="${commentId}" data-tweet="${tweetId}" style="cursor:pointer">
-        ${replyisLiked ? `<img src="image/filled-heart.svg">` : `<img src="image/heart.svg">`} <span id="reply-like-count-${rId}">${replylikeCount}</span>
-      </span>
-      ${auth.currentUser.uid === r.uid ? `<span class="reply-delete-btn" data-comment="${commentId}" data-reply="${rId}" data-tweet="${tweetId}" style="cursor:pointer;margin-left:auto;"><img src="image/trash.svg"></span>` : ""}
+    <span class="reply-like-btn" data-reply="${rId}" data-comment="${commentId}" data-tweet="${tweetId}" style="cursor:pointer;">
+      ${replyisLiked ? `<img src="image/filled-heart.svg">` : `<img src="image/heart.svg">`} <span id="reply-like-count-${rId}">${replylikeCount}</span>
+    </span>
+      ${auth.currentUser.uid === r.uid ? `<span class="reply-delete-btn" data-comment="${commentId}" data-reply="${rId}" data-tweet="${tweetId}" style="margin-left:auto;cursor:pointer;margin-left:auto;"><img src="image/trash.svg"></span>` : ""}
     </div>
   `;
 
