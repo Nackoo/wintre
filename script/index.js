@@ -4,6 +4,7 @@ import { handleTags } from './tags.js';
 import { sendCommentNotification, sendReplyNotification, listenForUnreadNotifications, loadNotifications, sendMentionNotification, sendRetweetNotification, sendReplyMentionNotification, sendCommentMentionNotification } from './notification.js';
 import { createClient, SUPABASE_URL, SUPABASE_ANON_KEY, MAX_FILE_BYTES, supabase } from "./firebase.js";
 import { uploadToSupabase, compressImageTo480, showImagePreview, readFileAsBase64 } from "./attachments.js";
+import { bookmark, profile, profilesub, user, usersub, tag, viewer, tweet, retweet, notification, comment, bookmarksvg, homesvg, usersvg, searchsvg, settingssvg, notifsvg, bookmarkfilled, homefilled, userfilled, searchfilled, settingsfilled, notiffilled } from "./nonsense.js"
 
 let lastTweet = null;
 let loadingMore = false;
@@ -175,14 +176,14 @@ document.getElementById("postBtn").addEventListener("click", async () => {
 
   let mediaURL = "";
   let mediaType = "";
-  let mediaPath = ""; 
+  let mediaPath = "";
 
   try {
     if (file) {
       const upload = await uploadToSupabase(file, user.uid);
       mediaURL = upload.url;
       mediaType = upload.type;
-      mediaPath = upload.path || ""; 
+      mediaPath = upload.path || "";
     }
 
     if (!text && !mediaURL) {
@@ -202,13 +203,28 @@ document.getElementById("postBtn").addEventListener("click", async () => {
       text,
       media: mediaURL,
       mediaType,
-      mediaPath,          
+      mediaPath,
       createdAt: new Date(),
       uid: user.uid,
       tags,
       replyPermission: permission,
-      ...(mentions.length > 0 && { mentions })
+      ...(mentions.length > 0 && {
+        mentions
+      })
     });
+
+    for (const tagId of tags) {
+      const tagRef = doc(db, "tags", tagId);
+      await setDoc(tagRef, {
+        name: tagId,
+        tweetCount: increment(1)
+      }, {
+        merge: true
+      });
+      await setDoc(doc(tagRef, "tweets", tweetRef.id), {
+        createdAt: new Date()
+      });
+    }
 
     await Promise.all(
       mentions.map(uid =>
@@ -222,7 +238,9 @@ document.getElementById("postBtn").addEventListener("click", async () => {
     );
 
     await handleTags(text, tweetRef.id);
-    await setDoc(doc(db, "users", user.uid, "posts", tweetRef.id), { exists: true });
+    await setDoc(doc(db, "users", user.uid, "posts", tweetRef.id), {
+      exists: true
+    });
     await updateDoc(userRef, {
       posts: increment(1),
       cooldown: new Date(Date.now() + 15 * 60 * 1000)
@@ -291,10 +309,6 @@ async function renderTweets(user) {
 
       if (change.type === "added") {
         await renderTweet(t, tweetId, user, mode, container);
-      }
-
-      if (change.type === "modified") {
-        await renderTweet(t, tweetId, user, "replace", container);
       }
 
       if (change.type === "removed") {
@@ -513,21 +527,12 @@ export async function renderTweet(t, tweetId, user, action = "prepend", containe
     collection(db, "tweets", tweetId, "likes")
   );
   const likeCount = likeCountSnap.data().count;
-
   const viewCountSnap = await getCountFromServer(
     collection(db, "tweets", tweetId, "views")
   );
   const viewCount = viewCountSnap.data().count;
-
-  const commentCountSnap = await getCountFromServer(
-    collection(db, "tweets", tweetId, "comments")
-  );
-  const commentCount = commentCountSnap.data().count;
-
-  const retweetQuery = query(collection(db, "tweets"), where("retweetOf", "==", tweetId));
-  const retweetSnap = await getCountFromServer(retweetQuery);
-  const retweetCount = retweetSnap.data().count;
-
+  const commentCount = t.commentCount || 0;
+  const retweetCount = t.retweetCount || 0;
   const dateStr = formatDate(t.createdAt);
 
   let mediaHTML = "";
@@ -803,9 +808,18 @@ document.body.addEventListener("click", async (e) => {
   if (!tweetSnap.exists()) return;
   const data = tweetSnap.data();
 
+  if (data.retweetOf) {
+    const originalRef = doc(db, "tweets", data.retweetOf);
+    await updateDoc(originalRef, {
+      retweetCount: increment(-1)
+    });
+  }
+
   if (data.mediaType === "video" && data.mediaPath) {
     try {
-      const { error } = await supabase.storage.from("wints").remove([data.mediaPath]);
+      const {
+        error
+      } = await supabase.storage.from("wints").remove([data.mediaPath]);
       if (error) console.error("Error deleting video from Supabase:", error);
       else console.log("Video deleted from Supabase:", data.mediaPath);
     } catch (err) {
@@ -823,9 +837,21 @@ document.body.addEventListener("click", async (e) => {
     }
   }
 
+  if (Array.isArray(data.tags)) {
+    for (const tagId of data.tags) {
+      const tagRef = doc(db, "tags", tagId);
+      await updateDoc(tagRef, {
+        tweetCount: increment(-1)
+      });
+      await deleteDoc(doc(tagRef, "tweets", tweetId));
+    }
+  }
+
   await deleteDoc(tweetRef);
   await deleteDoc(doc(db, "users", userId, "posts", tweetId));
-  await updateDoc(doc(db, "users", userId), { posts: increment(-1) });
+  await updateDoc(doc(db, "users", userId), {
+    posts: increment(-1)
+  });
 
   const el = document.getElementById("tweet-" + tweetId);
   if (el) el.remove();
@@ -1092,6 +1118,10 @@ document.body.addEventListener("click", async (e) => {
             ...(mentions.length > 0 && {
               mentions
             })
+          });
+
+          await updateDoc(doc(db, "tweets", tweetId), {
+            commentCount: increment(1)
           });
 
           await Promise.all(
@@ -1449,8 +1479,9 @@ document.body.addEventListener("click", async (e) => {
       loadedReplies[commentId] = 0;
       await loadReplies(tweetId, commentId);
     } else {
-      const replyCount = list.childElementCount;
-      e.target.textContent = replyCount < 1 ? "Reply" : `View replies (${replyCount})`;
+      const commentDoc = await getDoc(doc(db, "tweets", tweetId, "comments", commentId));
+      const replyCount = commentDoc.exists() ? commentDoc.data().replyCount || 0 : 0;
+      e.target.textContent = replyCount < 1 ? "Reply" : `View replies (${replyCount})`
       e.target.dataset.open = "false";
       replyBox.classList.add("hidden");
     }
@@ -1509,6 +1540,10 @@ document.body.addEventListener("click", async (e) => {
         })
       });
 
+      await updateDoc(doc(db, "tweets", tweetId, "comments", commentId), {
+        replyCount: increment(1)
+      });
+
       await Promise.all(
         mentions.map(uid =>
           sendReplyMentionNotification(tweetId, commentId, uid, text)
@@ -1539,7 +1574,7 @@ document.body.addEventListener("click", async (e) => {
   const closecomment = e.target.closest("#closeComment");
   if (closecomment) {
     const commentOverlay = document.getElementById('commentOverlay');
-    commentOverlay.classList.add ('hidden');
+    commentOverlay.classList.add('hidden');
     clearcomment();
   }
 
@@ -1588,7 +1623,7 @@ document.body.addEventListener("click", async (e) => {
       const src = (el.currentSrc || el.src || "");
       const cleaned = src.split("#")[0].split("?")[0].toLowerCase();
       return !cleaned.endsWith("/image/volume.svg") &&
-             !cleaned.endsWith("/image/volume-muted.svg");
+        !cleaned.endsWith("/image/volume-muted.svg");
     });
   }
 
@@ -1658,7 +1693,7 @@ async function loadReplies(tweetId, commentId) {
         "likes"
       )
     );
-    const replylikeCount = replylikeCountSnap.data().count;
+    const replylikeCount = r.likeCount || 0;
 
     const replyHTML = document.createElement("div");
     replyHTML.className = "reply-block";
@@ -1749,22 +1784,33 @@ document.body.addEventListener("click", async (e) => {
     const tweetOwnerId = tweetDoc.exists() ? tweetDoc.data().uid : null;
     const isCreator = auth.currentUser.uid === tweetOwnerId;
 
+    const replyRef = doc(db, "tweets", tweetId, "comments", commentId, "replies", replyId);
+
     if (snap.exists()) {
       await deleteDoc(ref);
       if (icon) icon.src = "image/heart.svg";
       if (countSpan) countSpan.textContent = `${parseInt(countSpan.textContent || 1) - 1}`;
-      const updateData = {};
+
+      const updateData = {
+        likeCount: increment(-1)
+      };
       if (isCreator) updateData.creatorLiked = false;
-      await updateDoc(doc(db, "tweets", tweetId, "comments", commentId, "replies", replyId), updateData);
+
+      await updateDoc(replyRef, updateData);
+
     } else {
       await setDoc(ref, {
         likedAt: new Date()
       });
       if (icon) icon.src = "image/filled-heart.svg";
       if (countSpan) countSpan.textContent = `${parseInt(countSpan.textContent || 0) + 1}`;
-      const updateData = {};
+
+      const updateData = {
+        likeCount: increment(1)
+      };
       if (isCreator) updateData.creatorLiked = true;
-      await updateDoc(doc(db, "tweets", tweetId, "comments", commentId, "replies", replyId), updateData);
+
+      await updateDoc(replyRef, updateData);
     }
   }
 
@@ -1804,6 +1850,9 @@ document.body.addEventListener("click", async (e) => {
     const commentId = commentDeleteBtn.dataset.id;
     if (confirm("Delete this comment?")) {
       await deleteDoc(doc(db, "tweets", tweetId, "comments", commentId));
+      await updateDoc(doc(db, "tweets", tweetId), {
+        commentCount: increment(-1)
+      });
       loadComments(tweetId);
     }
   }
@@ -1813,8 +1862,13 @@ document.body.addEventListener("click", async (e) => {
     const tweetId = replyDeleteBtn.dataset.tweet;
     const commentId = replyDeleteBtn.dataset.comment;
     const replyId = replyDeleteBtn.dataset.reply;
+
     if (confirm("Delete this reply?")) {
       await deleteDoc(doc(db, "tweets", tweetId, "comments", commentId, "replies", replyId));
+      await updateDoc(doc(db, "tweets", tweetId, "comments", commentId), {
+        replyCount: increment(-1)
+      });
+
       loadedReplies[commentId] = 0;
       await loadReplies(tweetId, commentId);
     }
@@ -1896,33 +1950,16 @@ sendRetweet.onclick = async () => {
 
   const text = document.getElementById("retweetText").value.trim();
   const originalId = selectedRetweet;
-  const fileInput = document.getElementById("retweetMedia-TWEETID");
-  const file = fileInput.files[0];
+
+  const fileInput =
+    document.getElementById(`retweetMedia-${originalId}`) ||
+    document.getElementById("retweetMedia-TWEETID");
+
+  const file = fileInput?.files?.[0];
 
   const user = auth.currentUser;
   const uid = user?.uid;
-  if (!uid || !originalId) return;
-
-  const userRef = doc(db, "users", uid);
-  const userSnap = await getDoc(userRef);
-  if (userSnap.exists()) {
-    const data = userSnap.data();
-    if (data.cooldown?.toDate) {
-      const now = new Date();
-      const cooldownTime = data.cooldown.toDate();
-      if (now < cooldownTime) {
-        const diffMs = cooldownTime - now;
-        const diffMins = Math.ceil(diffMs / 60000);
-        alert(`Cooldown resets in ${diffMins} minute${diffMins> 1 ? 's' : ''}`);
-        sendRetweet.disabled = false;
-        sendRetweet.classList.remove('disabled');
-        return;
-      }
-    }
-  }
-
-  if (file && file.size > 3 * 1024 * 1024) {
-    alert("File size exceeds 3MB. Please choose a smaller file.");
+  if (!uid || !originalId) {
     sendRetweet.disabled = false;
     sendRetweet.classList.remove('disabled');
     return;
@@ -1954,6 +1991,10 @@ sendRetweet.onclick = async () => {
       })
     });
 
+    await updateDoc(doc(db, "tweets", originalId), {
+      retweetCount: increment(1)
+    });
+
     await sendRetweetNotification(originalId, text, tweetRef.id);
 
     await Promise.all(
@@ -1972,26 +2013,31 @@ sendRetweet.onclick = async () => {
     await setDoc(doc(db, "users", uid, "posts", tweetRef.id), {
       exists: true
     });
-    await updateDoc(userRef, {
+    await updateDoc(doc(db, "users", uid), {
       posts: increment(1),
       cooldown: new Date(Date.now() + 15 * 60 * 1000)
     });
 
     document.getElementById("retweetText").value = "";
-    fileInput.value = "";
-    document.getElementById("retweetPreview-TWEETID").innerHTML = "";
+    if (fileInput) fileInput.value = "";
+
+    const preview =
+      document.getElementById(`retweetPreview-${originalId}`) ||
+      document.getElementById("retweetPreview-TWEETID");
+    if (preview) preview.innerHTML = "";
+
     document.getElementById("retweetOverlay").classList.add("hidden");
 
   } catch (error) {
-    if (error.message.includes("The value of property \"media\" is longer than")) {
+    if (error.message?.includes('The value of property "media" is longer than')) {
       alert("Media file is too large");
     } else {
       console.error("❌ Retweet failed:", error);
     }
+  } finally {
+    sendRetweet.disabled = false;
+    sendRetweet.classList.remove('disabled');
   }
-
-  sendRetweet.disabled = false;
-  sendRetweet.classList.remove('disabled');
 };
 
 document.body.addEventListener("change", (e) => {
