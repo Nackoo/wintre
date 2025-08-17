@@ -31,7 +31,7 @@ async function loadBookmarks(initial = false) {
 
   const snap = await getDocs(q);
   if (snap.empty && initial) {
-    bookmarkList.innerHTML = `<div style="display:flex;justify-content:center;opacity:0.2;"><img style="height:250px;width:250px;" src="image/404.png"></div>`;
+    bookmarkList.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
     loadMoreBtn.style.display = "none";
     loading = false;
     return;
