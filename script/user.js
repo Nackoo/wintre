@@ -106,7 +106,7 @@ async function searchTweets(term) {
   });
 
   if (tweetSearchResults.length === 0) {
-    tweetsView.innerHTML = `<div style="display:flex;justify-content:center;opacity:0.2;"><img style="height:250px;width:250px;" src="image/404.png"></div>`;
+    tweetsView.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
     tweetSearchNoMore = true;
     return;
   }
@@ -174,7 +174,7 @@ async function loadTweets(uid) {
   const snap = await getDocs(q);
 
   if (snap.empty && userLoadedCount === 0) {
-    list.innerHTML = `<div id="start" style="display:flex;justify-content:center;opacity:0.2;"><img style="height:250px;width:250px;" src="image/404.png"></div>`;
+    list.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
     loadMore.style.display = "none";
     return;
   } else {
@@ -285,7 +285,7 @@ export async function fetchTags(term) {
       .slice(0, 10);
 
     if (topTags.length === 0) {
-      tagsView.innerHTML = `<div style="display:flex;justify-content:center;opacity:0.2;"><img style="height:250px;width:250px;" src="image/404.png"></div>`;
+      tagsView.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
       return;
     }
 
@@ -309,7 +309,7 @@ export async function fetchTags(term) {
   const snap = await getDocs(q);
 
   if (snap.empty) {
-    tagsView.innerHTML = `<div style="display:flex;justify-content:center;opacity:0.2;"><img style="height:250px;width:250px;" src="image/404.png"></div>`;
+    tagsView.innerHTML = `<<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
     return;
   }
 
@@ -480,7 +480,7 @@ window.openTag = async function(tagId) {
   await renderBatch();
 
   if (renderedCount === 0) {
-    tweetList.innerHTML = `<div style="display:flex;justify-content:center;opacity:0.2;"><img style="height:250px;width:250px;" src="image/404.png"></div>`;
+    tweetList.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
   }
 };
 
@@ -525,7 +525,7 @@ async function loadFollowUsers(type, userId, searchTerm = "") {
 
   const snap = await getDocs(q);
   if (snap.empty && followList.length === 0) {
-    document.getElementById("followList").innerHTML = `<div style="display:flex;justify-content:center;opacity:0.2;"><img style="height:250px;width:250px;" src="image/404.png"></div>`;
+    document.getElementById("followList").innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
     return;
   }
   followLastDoc = snap.docs[snap.docs.length - 1];
@@ -700,7 +700,7 @@ async function loadUserMentionedTweets(uid) {
   mloadMore.style.display = "none";
 
   if (snap.empty && mentionedLoadedCount === 0) {
-    usermentionedList.innerHTML = `<div style="display:flex;justify-content:center;opacity:0.2;"><img style="height:250px;width:250px;" src="image/404.png"></div>`;
+    usermentionedList.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
     return;
   }
 
