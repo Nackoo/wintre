@@ -138,6 +138,7 @@ document.body.addEventListener("click", async (e) => {
       notiffilled?.classList.add('hidden');
       notifsvg?.classList.remove('hidden');
       viewer?.classList.add('hidden');
+      follow?.classList.add('hidden');
     }
   }
 });
