@@ -294,7 +294,6 @@
 
 #tweetViewer .tweet {
   border: var(--border);
-  !important;
   border-radius: 15px;
 }
 
