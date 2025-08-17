@@ -507,6 +507,7 @@ followOverlay.innerHTML = `
     <div id="followList"></div>
   </div>`;
 document.body.appendChild(followOverlay);
+window.followOverlay = followOverlay; 
 
 async function openFollowOverlay(type, userId, isMe) {
   document.getElementById("followOverlay").classList.remove("hidden");
