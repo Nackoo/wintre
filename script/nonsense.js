@@ -4,7 +4,6 @@ const profilesub = document.getElementById('profileSubOverlay');
 const user = document.getElementById('userOverlay');
 const usersub = document.getElementById('userSubOverlay');
 const tag = document.getElementById('tagSubOverlay');
-const follow = document.getElementById('followOverlay');
 const viewer = document.getElementById('tweetViewer');
 const tweet = document.getElementById('tweetOverlay');
 const retweet = document.getElementById('retweetOverlay');
@@ -25,8 +24,8 @@ const searchfilled = document.querySelector('.smallbar img[src="image/search-fil
 const settingsfilled = document.querySelector('.smallbar img[src="image/settings-filled.svg"]');
 const notiffilled = document.querySelector('.smallbar img[src="image/notification-filled.svg"]');
 
-const panelsToHide = [
-  profile, profilesub, user, usersub, tag, follow,
+const panelsToHide = () => [
+  profile, profilesub, user, usersub, tag, document.getElementById("followOverlay"),
   viewer, tweet, retweet, bookmark, notification, comment
 ];
 
@@ -59,7 +58,7 @@ const filledIconMap = {
 
 const clickHandler = (clickedIcon) => {
   return () => {
-    panelsToHide.forEach(p => p?.classList.add('hidden'));
+    panelsToHide().forEach(p => p?.classList.add("hidden"));
     filledIcons.forEach(icon => icon?.classList.add('hidden'));
     Object.values(outlineIcons).forEach(icon => icon?.classList.remove('hidden'));
     outlineIcons[clickedIcon]?.classList.add('hidden');
@@ -125,7 +124,7 @@ document.body.addEventListener("click", async (e) => {
     const uid = userLink.dataset.uid;
     if (uid) {
       await window.openUserSubProfile(uid);
-      document.getElementById('followOverlay')?.classList.add('hidden');
+      document.getElementById("followOverlay")?.classList.add('hidden');
       comment?.classList.add('hidden');
       user?.classList.remove('hidden');
       homefilled?.classList.add('hidden');
