@@ -190,4 +190,4 @@ service cloud.firestore {
 
 <hr>
 
-made by Nackoo
+Created by Nackoo
