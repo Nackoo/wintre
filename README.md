@@ -1,4 +1,4 @@
-<img style="width: 178px; height: 178px" src="/image/W.png"><h1>Wyntr - micro-blogging social media</h1>
+<img style="width: 178px; height: 178px" src="/image/icon.png"><h1>Wyntr - micro-blogging social media</h1>
 
 this project is powered by firebase & supabase.
 
