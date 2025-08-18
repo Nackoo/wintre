@@ -159,9 +159,9 @@ export function listenForUnreadNotifications() {
     }
 
     if (unreadCount === 0) {
-      document.title = "Wyntr";
+      document.title = "Wyntr — It's what's going on.";
     } else {
-      document.title = `(${unreadCount}) Wyntr`;
+      document.title = `(${unreadCount}) Wyntr — It's what's going on.`;
     }
   });
 }
