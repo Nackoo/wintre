@@ -1,4 +1,4 @@
-import { db, auth, doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, deleteDoc, orderBy, limit, signOut, startAfter } from "./firebase.js";
+import { db, auth, doc, getDoc, setDoc, updateDoc, collection, query, where, getDocs, deleteDoc, orderBy, limit, signOut, startAfter, onSnapshot } from "./firebase.js";
 import { renderTweet } from './index.js';
 
 const bannerInput = document.getElementById("banner-input");
@@ -13,6 +13,9 @@ const myBanner = document.getElementById("my-banner");
 const myDescription = document.querySelector("#my-description");
 const myName = document.querySelector("#my-name");
 const profileSubOverlay = document.getElementById("profileSubOverlay");
+
+let unsubscribeMentioned = null;
+let unsubscribeYouList = null;
 
 document.getElementById("logout").addEventListener("click", async () => {
   try {
@@ -281,7 +284,7 @@ document.querySelector('.smallbar img[src="image/user.svg"]').addEventListener("
     const formatted = `${date.getDate()} ${date.toLocaleString("default", { month: "long" })} ${date.getFullYear()}`;
     document.getElementById("my-creation").textContent = `joined ${formatted}`;
   }
-  loadTweets(uid);
+  listenUserTweets(uid);
 });
 
 async function loadTweets(uid) {
@@ -374,12 +377,11 @@ document.querySelectorAll(".tab2").forEach(tab => {
 
     const uid = document.getElementById("my-name").dataset.uid;
 
-if (targetId === "youList") {
-    loadTweets(uid);
-}
-
+    if (targetId === "youList") {
+      listenUserTweets(uid);
+    } 
     else if (targetId === "mentionedList") {
-        loadUserMentionedTweets(uid);
+      listenMentionedTweets(uid); 
     }
   });
 });
@@ -429,4 +431,53 @@ async function loadUserMentionedTweets(uid) {
     mentionedLastVisibleDoc = snap.docs[snap.docs.length - 1];
   }
 
+}
+
+function listenUserTweets(uid) {
+  if (unsubscribeYouList) unsubscribeYouList();
+
+  const q = query(
+    collection(db, "tweets"),
+    where("uid", "==", uid),
+    orderBy("createdAt", "desc")
+  );
+
+  unsubscribeYouList = onSnapshot(q, (snap) => {
+    list.innerHTML = ""; 
+
+    if (snap.empty) {
+      list.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
+      return;
+    }
+
+    snap.docs.forEach(async (docSnap) => {
+      await renderTweet(docSnap.data(), docSnap.id, { uid }, "append", list);
+    });
+  });
+}
+
+function listenMentionedTweets(uid) {
+  if (unsubscribeMentioned) unsubscribeMentioned();
+
+  const q = query(
+    collection(db, "users", uid, "mentioned"),
+    orderBy("mentionedAt", "desc")
+  );
+
+  unsubscribeMentioned = onSnapshot(q, async (snap) => {
+    usermentionedList.innerHTML = "";
+
+    if (snap.empty) {
+      usermentionedList.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
+      return;
+    }
+
+    for (const mentionDoc of snap.docs) {
+      const tweetId = mentionDoc.id;
+      const tweetDoc = await getDoc(doc(db, "tweets", tweetId));
+      if (tweetDoc.exists()) {
+        await renderTweet(tweetDoc.data(), tweetId, { uid }, "append", usermentionedList);
+      }
+    }
+  });
 }
