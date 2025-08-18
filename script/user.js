@@ -212,6 +212,11 @@ async function fetchUsers(reset = false) {
   if (isFetching) return;
   isFetching = true;
 
+  if (reset) {
+    totalLoaded = 0;  
+    usersView.innerHTML = ""; 
+  }
+
   const selfUID = auth.currentUser?.uid;
   const q = lastUserDoc ?
     query(collection(db, "users"), orderBy("displayName"), startAfter(lastUserDoc), limit(10)) :
@@ -225,6 +230,12 @@ async function fetchUsers(reset = false) {
     return doc.id !== selfUID &&
       data.displayName?.toLowerCase().includes(currentSearchTerm);
   });
+
+if (filtered.length === 0 && totalLoaded === 0) {
+  usersView.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
+  isFetching = false;
+  return;
+}
 
   for (const docSnap of filtered) {
     const data = docSnap.data();
@@ -309,7 +320,7 @@ export async function fetchTags(term) {
   const snap = await getDocs(q);
 
   if (snap.empty) {
-    tagsView.innerHTML = `<<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
+    tagsView.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
     return;
   }
 
