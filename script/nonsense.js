@@ -10,19 +10,19 @@ export const retweet = document.getElementById('retweetOverlay');
 export const notification = document.getElementById('notificationOverlay');
 export const comment = document.getElementById('commentOverlay');
 
-export const bookmarksvg = document.querySelector('.smallbar img[src="image/bookmark.svg"]');
-export const homesvg = document.querySelector('.smallbar img[src="image/home.svg"]');
-export const usersvg = document.querySelector('.smallbar img[src="image/user.svg"]');
-export const searchsvg = document.querySelector('.smallbar img[src="image/search.svg"]');
-export const settingssvg = document.querySelector('.smallbar img[src="image/settings.svg"]');
+export const bookmarksvg = document.querySelector('.smallbar img[src="/image/bookmark.svg"]');
+export const homesvg = document.querySelector('.smallbar img[src="/image/home.svg"]');
+export const usersvg = document.querySelector('.smallbar img[src="/image/user.svg"]');
+export const searchsvg = document.querySelector('.smallbar img[src="/image/search.svg"]');
+export const settingssvg = document.querySelector('.smallbar img[src="/image/settings.svg"]');
 export const notifsvg = document.getElementById('notifsvg');
 
-export const bookmarkfilled = document.querySelector('.smallbar img[src="image/bookmark-filled.svg"]');
-export const homefilled = document.querySelector('.smallbar img[src="image/home-filled.svg"]');
-export const userfilled = document.querySelector('.smallbar img[src="image/user-filled.svg"]');
-export const searchfilled = document.querySelector('.smallbar img[src="image/search-filled.svg"]');
-export const settingsfilled = document.querySelector('.smallbar img[src="image/settings-filled.svg"]');
-export const notiffilled = document.querySelector('.smallbar img[src="image/notification-filled.svg"]');
+export const bookmarkfilled = document.querySelector('.smallbar img[src="/image/bookmark-filled.svg"]');
+export const homefilled = document.querySelector('.smallbar img[src="/image/home-filled.svg"]');
+export const userfilled = document.querySelector('.smallbar img[src="/image/user-filled.svg"]');
+export const searchfilled = document.querySelector('.smallbar img[src="/image/search-filled.svg"]');
+export const settingsfilled = document.querySelector('.smallbar img[src="/image/settings-filled.svg"]');
+export const notiffilled = document.querySelector('.smallbar img[src="/image/notification-filled.svg"]');
 
 const panelsToHide = () => [
   profile, profilesub, user, usersub, tag, document.getElementById("followOverlay"),
@@ -180,5 +180,32 @@ document.body.addEventListener("click", async (e) => {
       notifsvg?.classList.remove('hidden');
       viewer?.classList.add('hidden');
     }
+  }
+});
+
+function goHome() {
+  history.pushState({}, "", "/");
+  document.getElementById("tweetViewer")?.classList.add("hidden");
+  document.body.classList.remove("no-scroll");
+  const homePanel = document.getElementById("tweetsView");
+  if (homePanel) homePanel.classList.remove("hidden");
+}
+
+[bookmarksvg, usersvg, searchsvg, settingssvg, notifsvg].forEach(btn => {
+  if (btn) {
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      goHome();
+    });
+  }
+});
+
+["post", "tweetViewerclose"].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) {
+    el.addEventListener("click", (e) => {
+      e.preventDefault();
+      goHome();
+    });
   }
 });
