@@ -1,5 +1,5 @@
 @media (min-width: 700px) {
-  .smallbar img[src="image/home.svg"] {
+  .smallbar img[src="/image/home.svg"] {
     margin-top: 20px
   }
 
@@ -429,4 +429,82 @@
 .user-box .retweet {
   border-radius: 15px !important;
   border: var(--border) !important;
+}
+
+#appendTweet .tweet {
+  border-radius: 15px !important;
+  border: var(--border) !important;
+}
+
+@media (max-width: 700px) {
+  #appendTweet .tweet {
+    padding: 10px !important;
+  }
+}
+
+#retweetOverlay {
+  z-index: 7;
+}
+
+.tweet-menu {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  left: 0;
+  background: var(--dark);
+  border: var(--border);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  z-index: 8;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 5px;
+}
+
+.tweet-menu .menu-item:hover {
+  background: var(--light);
+  border-radius: 6px;
+}
+
+.overlay-box {
+  background: var(--dark);
+  padding: 20px;
+  border-radius: 15px;
+  width: 100%;
+  max-width: 450px;
+  position: relative;
+  border: var(--border);
+  margin: 13px;
+}
+
+.overlay-box .close-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  border: none;
+  font-size: 18px;
+}
+
+.overlay-box span {
+  color: grey;
+}
+
+.overlay-box h2 {
+  margin-bottom: 10px;
+}
+
+.overlay-box button:last-child {
+  width: 100%;
+  padding: 13px;
+  margin-top: 25px;
+  margin-bottom: 10px;
 }
