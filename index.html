@@ -7,16 +7,16 @@
   <meta property="og:title" content="Wyntr">
   <meta property="og:description" content="From breaking news and entertainment to sports and politics.">
   <meta property="og:image" content="/wintre">
-  <link rel="icon" type="image/png" href="image/icon.png">
+  <link rel="icon" type="image/png" href="/image/icon.png">
   <title>Wyntr — It's what's going on.</title>
-  <link rel="stylesheet" href="style/index.css">
-  <link rel="stylesheet" href="style/user.css">
+  <link rel="stylesheet" href="/style/index.css">
+  <link rel="stylesheet" href="/style/user.css">
 </head>
 
 <body>
 
   <div id="loadingScreen">
-    <img src="image/icon.png">
+    <img src="/image/icon.png">
     <p id="log" class="flex" style="gap:12px"></p>
   </div>
 
@@ -24,7 +24,7 @@
     <div class="user-box">
       <header>
         <div class="flex">
-          <button onclick="hidebookmark()" class="close-btn" style="margin-left:auto;position:absolute;top:24px;right:0;"><img src="image/x.svg"></button>
+          <button onclick="hidebookmark()" class="close-btn" style="margin-left:auto;position:absolute;top:24px;right:0;"><img src="/image/x.svg"></button>
         </div>
         <h2>bookmarks</h2>
       </header>
@@ -37,7 +37,7 @@
   <div id="profileOverlay" class="useroverlay hidden">
     <div class="user-box">
       <header>
-        <button onclick="hideprofile()" class="close-btn" style="position:absolute;top:20px;left:0;"><img src="image/leftArrow.svg"></button>
+        <button onclick="hideprofile()" class="close-btn" style="position:absolute;top:20px;left:0;"><img src="/image/leftArrow.svg"></button>
         <h2 style="text-align:right;">About you</h2>
       </header>
       <div id="my-banner" class="flex banner">
@@ -45,7 +45,7 @@
       </div>
       <h2 id="my-name" style="margin-top:80px;margin-bottom:0;"></h2>
       <p id="my-description"></p>
-      <p style="display:flex;align-items:center;margin-bottom:0;"><img src="image/calendar.svg" style="margin-right:6px;height:20px;"><span id="my-creation"></span></p>
+      <p style="display:flex;align-items:center;margin-bottom:0;"><img src="/image/calendar.svg" style="margin-right:6px;height:20px;"><span id="my-creation"></span></p>
       <div style="align-items: center; margin-bottom: 0;display: flex; gap: 8px;"><span id="my-ers"><span id="my-followers" style="font-weight:bold;">0</span> <span style="color:grey">followers</span></span> <span id="my-ing"><span id="my-following" style="font-weight:bold;">0</span> <span style="color:grey">following</span></span>
         <p style="margin-left:auto;"><span id="my-posts" style="font-weight:bold;">0</span> <span style="color:grey">wints</span></p>
       </div>
@@ -65,7 +65,7 @@
     <div class="sub-user-box">
       <div class="flex">
         <button onclick="hidesettings()" class="close-btn" style="margin-left:auto;position:absolute;top:0;right:0;">
-          <img src="image/x.svg" alt="Close">
+          <img src="/image/x.svg" alt="Close">
         </button>
       </div>
 
@@ -87,7 +87,7 @@
 
       <br><br><br>
       <button onclick="window.open('/user/tos', '_blank', 'noopener')" style="background:var(--light);width:100%;padding:0 15px;border-radius:10px;border:var(--border);display:flex;gap:8px;align-items:center;">
-        <img src="image/arrow-up.svg">
+        <img src="/image/arrow-up.svg">
         <p style="color:var(--color);">Wyntr ToS</p>
       </button>
       <br>
@@ -103,7 +103,7 @@
     <div class="user-box">
       <br>
       <header style="display: flex; gap: 15px;padding:15px 0">
-        <button onclick="hideuser()" style="background: none;"><img src="image/x.svg"></button>
+        <button onclick="hideuser()" style="background: none;"><img src="/image/x.svg"></button>
         <input type="text" placeholder="search anything"></input>
       </header>
       <div class="tab-container">
@@ -124,7 +124,7 @@
     <div class="user-box">
       <br>
       <header style="display: flex; gap: 15px;">
-        <button onclick="hidenotif()" style="background: none;"><img src="image/leftArrow.svg"></button>
+        <button onclick="hidenotif()" style="background: none;"><img src="/image/leftArrow.svg"></button>
         <h2>notifications</h2>
       </header>
       <div id="notifications">
@@ -136,7 +136,7 @@
   <div id="tagSubOverlay" class="useroverlay hidden suboverlay">
     <div class="user-box">
       <header style="display:flex">
-        <button onclick="document.getElementById('tagSubOverlay').classList.add('hidden');" class="close-btn"><img src="image/leftArrow.svg"></button>
+        <button onclick="document.getElementById('tagSubOverlay').classList.add('hidden');" class="close-btn"><img src="/image/leftArrow.svg"></button>
         <h2 style="margin-left:auto;" id="tagId"></h2>
       </header>
       <div id="tagstweet"></div>
@@ -147,7 +147,7 @@
   <div id="userSubOverlay" class="useroverlay hidden suboverlay">
     <div class="user-box">
       <header>
-        <button onclick="closeUser()" class="close-btn" style="position:absolute;top:20px;left:0;"><img src="image/leftArrow.svg"></button>
+        <button onclick="closeUser()" class="close-btn" style="position:absolute;top:20px;left:0;"><img src="/image/leftArrow.svg"></button>
         <h2 style="text-align:right;" id="who"></h2>
       </header>
       <div id="user-banner" class="flex banner">
@@ -156,7 +156,7 @@
       </div>
       <h2 id="user-name" style="margin-top:80px;margin-bottom:0;"></h2>
       <p id="user-description"></p>
-      <p style="display:flex;align-items:center;margin-bottom:0;"><img src="image/calendar.svg" style="margin-right:6px;height:20px;"><span id="user-creation"></span></p>
+      <p style="display:flex;align-items:center;margin-bottom:0;"><img src="/image/calendar.svg" style="margin-right:6px;height:20px;"><span id="user-creation"></span></p>
       <div style="align-items: center; margin-bottom: 5px;display: flex; gap: 8px;"><span id="ers"><span id="followers" style="font-weight:bold;">0</span> <span style="color:grey">followers</span></span> <span id="ing"><span id="following" style="font-weight:bold;">0</span> <span style="color:grey">following</span></span>
         <p style="margin-left:auto;"><span id="posts" style="font-weight:bold;">0</span> <span style="color:grey">wynts</span></p>
       </div>
@@ -176,7 +176,7 @@
     <div class="container">
       <button onclick="
       document.getElementById('tweetOverlay').classList.remove('hidden');
-    " id="post"><img src="image/write.svg"></button>
+    " id="post"><img src="/image/write.svg"></button>
       <header style="z-index: 2; position: fixed; transition: top 0.4s ease;" id="timeline-header">
         <div class="tab-container" id="tab-container-header">
           <button class="tab active" data-target="timeline" style="margin:10px 0">All</button>
@@ -198,7 +198,7 @@
           <div class="attachment" id="retweetPreview-TWEETID"></div>
           <div class="flex">
             <button id="sendRetweet">Post</button>
-            <label class="custom-file-btn" for="retweetMedia-TWEETID"><img src="image/upload.svg"></label>
+            <label class="custom-file-btn" for="retweetMedia-TWEETID"><img src="/image/upload.svg"></label>
             <input type="file" id="retweetMedia-TWEETID" class="hidden-input" accept="image/*,video/*">
             <button class="no-bg" style="margin-left: auto;" onclick="
         document.getElementById('retweetText').value = '';
@@ -212,9 +212,10 @@
       <div id="tweetViewer" class="useroverlay hidden">
         <header style="position:fixed;display:flex;justify-content:center;background:transparent;">
           <div class="flex" style="margin-top:-1px;padding:0 20px;width:100%;max-width:555px;background:black;">
-            <button class="close-btn" onclick="
+            <button class="close-btn" id="tweetviewerclose" onclick="
           document.getElementById('tweetViewer').classList.add('hidden');
-          "><img src="image/leftArrow.svg"></button>
+          history.pushState({}, '', '/');
+          "><img src="/image/leftArrow.svg"></button>
             <h2 style="margin-left:auto;">post</h2>
           </div>
         </header>
@@ -224,13 +225,12 @@
           </div>
           <br><br><br>
         </div>
-
       </div>
 
       <div id="commentOverlay" class="overlay hidden">
         <div class="comment-box">
           <div class="flex">
-            <button id="closeComment" style="margin-left: auto;" class="close-btn"><img src="image/x.svg"></button>
+            <button id="closeComment" style="margin-left: auto;" class="close-btn"><img src="/image/x.svg"></button>
           </div>
           <div class="tweet" id="commentTweet"></div>
           <textarea id="commentInput" placeholder="hmm...?"></textarea>
@@ -238,7 +238,7 @@
           <div class="flex" id="comment-status"></div>
           <div class="flex" id="skibidi">
             <button id="sendComment">Post</button>
-            <label class="custom-file-btn" for="commentMediaInput"><img src="image/upload.svg"></label>
+            <label class="custom-file-btn" for="commentMediaInput"><img src="/image/upload.svg"></label>
             <input type="file" id="commentMediaInput" class="comment-media-input hidden-input" accept="image/*" />
             <button style="margin-left:auto" class="cancel-comment-btn no-bg">Cancel</button>
           </div>
@@ -264,7 +264,7 @@
           </select>
           <div class="flex">
             <button id="postBtn" style="padding:7px 15px">Wynt</button>
-            <label class="custom-file-btn" for="mediaInput"><img src="image/upload.svg"></label>
+            <label class="custom-file-btn" for="mediaInput"><img src="/image/upload.svg"></label>
             <input type="file" id="mediaInput" class="hidden-input" accept="image/*,video/*">
             <button class="no-bg" style="margin-left: auto;" onclick="
   document.getElementById('tweetInput').value = ''; 
@@ -281,33 +281,42 @@
     <button id="closeOverlay">✕</button>
   </div>
 
+  <div id="viewOverlay" class="overlay hidden">
+    <div class="overlay-box">
+      <button id="closeViewOverlay" class="close-btn"><img src="/image/x.svg"></button>
+      <h2>Views</h2>
+      <span>Times this Wynt was seen.</span>
+      <button id="closeviewover">dismiss</button>
+    </div>
+  </div>
+
   <div class="smallbar">
-    <img src="image/home-filled.svg">
-    <img src="image/home.svg" class="hidden">
-    <img src="image/bookmark.svg">
-    <img src="image/bookmark-filled.svg" class="hidden">
-    <img src="image/user.svg">
-    <img src="image/user-filled.svg" class="hidden">
-    <img src="image/search.svg">
-    <img src="image/search-filled.svg" class="hidden">
+    <img src="/image/home-filled.svg">
+    <img src="/image/home.svg" class="hidden">
+    <img src="/image/bookmark.svg">
+    <img src="/image/bookmark-filled.svg" class="hidden">
+    <img src="/image/user.svg">
+    <img src="/image/user-filled.svg" class="hidden">
+    <img src="/image/search.svg">
+    <img src="/image/search-filled.svg" class="hidden">
     <div id="notifsvg">
-      <img src="image/notification.svg" style="margin:0">
+      <img src="/image/notification.svg" style="margin:0">
       <div id="unread"></div>
     </div>
 
-    <img src="image/notification-filled.svg" class="hidden">
-    <img src="image/settings.svg">
-    <img src="image/settings-filled.svg" class="hidden">
+    <img src="/image/notification-filled.svg" class="hidden">
+    <img src="/image/settings.svg">
+    <img src="/image/settings-filled.svg" class="hidden">
   </div>
 
-  <script type="module" src="script/main.js"></script>
-  <script type="module" src="script/index.js"></script>
-  <script type="module" src="script/bookmark.js"></script>
-  <script type="module" src="script/profile.js"></script>
-  <script type="module" src="script/user.js"></script>
-  <script type="module" src="script/tweetViewer.js"></script>
-  <script type="module" src="script/notification.js"></script>
-  <script type="module" src="script/nonsense.js"></script>
+  <script type="module" src="/script/main.js"></script>
+  <script type="module" src="/script/index.js"></script>
+  <script type="module" src="/script/bookmark.js"></script>
+  <script type="module" src="/script/profile.js"></script>
+  <script type="module" src="/script/user.js"></script>
+  <script type="module" src="/script/tweetViewer.js"></script>
+  <script type="module" src="/script/notification.js"></script>
+  <script type="module" src="/script/nonsense.js"></script>
 
 </body>
 
