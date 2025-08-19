@@ -2,7 +2,7 @@ import { db, collection, query, where, getDocs, orderBy, limit, auth, getDoc, do
 import { renderTweet } from './index.js';
 import { sendFollowNotification } from "./notification.js";
 
-const searchBtn = document.querySelector('.smallbar img[src="image/search.svg"]');
+const searchBtn = document.querySelector('.smallbar img[src="/image/search.svg"]');
 const userOverlay = document.getElementById("userOverlay");
 const userSubOverlay = document.getElementById("userSubOverlay");
 const searchInput = userOverlay.querySelector("input[type='text']");
@@ -106,7 +106,7 @@ async function searchTweets(term) {
   });
 
   if (tweetSearchResults.length === 0) {
-    tweetsView.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
+    tweetsView.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="/image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
     tweetSearchNoMore = true;
     return;
   }
@@ -174,7 +174,7 @@ async function loadTweets(uid) {
   const snap = await getDocs(q);
 
   if (snap.empty && userLoadedCount === 0) {
-    list.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
+    list.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="/image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
     loadMore.style.display = "none";
     return;
   } else {
@@ -232,7 +232,7 @@ async function fetchUsers(reset = false) {
   });
 
 if (filtered.length === 0 && totalLoaded === 0) {
-  usersView.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
+  usersView.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="/image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
   isFetching = false;
   return;
 }
@@ -249,7 +249,7 @@ if (filtered.length === 0 && totalLoaded === 0) {
     item.style.cssText = "display:flex;gap:10px;padding:15px 0 10px 0;border-bottom:var(--border);align-items:center";
 
     item.innerHTML = `
-<img src="${data.photoURL}" onerror="this.src='image/default-avatar.jpg'"
+<img src="${data.photoURL}" onerror="this.src='/image/default-avatar.jpg'"
      style="width:40px;height:40px;border-radius:50%;object-fit:cover;align-self:flex-start;">
 <div style="flex:1">
   <div style="display:flex;align-items:center;">
@@ -296,14 +296,14 @@ export async function fetchTags(term) {
       .slice(0, 10);
 
     if (topTags.length === 0) {
-      tagsView.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
+      tagsView.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="/image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
       return;
     }
 
     for (const tag of topTags) {
       const item = document.createElement("div");
       item.className = "tag-search-item";
-      item.innerHTML = `<div style="display:flex;align-items:center;"><strong style="color:#00ba7c;">#${tag.id}</strong> <p style="color:var(--color);margin-left:auto">${tag.count} wints</p></div>`;
+      item.innerHTML = `<div style="display:flex;align-items:center;"><strong style="color:#00ba7c;">#${tag.id}</strong> <p style="color:var(--color);margin-left:auto">${tag.count} Wynts</p></div>`;
       item.style.cssText = "border-bottom:var(--border);cursor:pointer;";
       item.onclick = () => openTag(tag.id);
       tagsView.appendChild(item);
@@ -320,7 +320,7 @@ export async function fetchTags(term) {
   const snap = await getDocs(q);
 
   if (snap.empty) {
-    tagsView.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
+    tagsView.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="/image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
     return;
   }
 
@@ -330,7 +330,7 @@ export async function fetchTags(term) {
 
     const item = document.createElement("div");
     item.className = "tag-search-item";
-    item.innerHTML = `<div style="display:flex;align-items:center"><strong style="color:#00ba7c;">#${tagId}</strong> <p style="color:var(--color);margin-left:auto">${tweetCount} wints</p></div>`;
+    item.innerHTML = `<div style="display:flex;align-items:center"><strong style="color:#00ba7c;">#${tagId}</strong> <p style="color:var(--color);margin-left:auto">${tweetCount} Wynts</p></div>`;
     item.style.cssText = "border-bottom:var(--border);cursor:pointer;";
     item.onclick = () => openTag(tagId);
     tagsView.appendChild(item);
@@ -364,7 +364,7 @@ async function openUserSubProfile(uid) {
   document.getElementById("who").textContent = d.displayName || "Unnamed";
   document.getElementById("user-name").textContent = d.displayName || "Unnamed";
   document.getElementById("user-description").textContent = d.description || "wsg homie?";
-  document.getElementById("user-pfp").style.background = `url(${d.photoURL || "image/default-avatar.png"}) no-repeat center /cover`;
+  document.getElementById("user-pfp").style.background = `url(${d.photoURL || "/image/default-avatar.png"}) no-repeat center /cover`;
   document.getElementById("user-banner").style.background = d.banner ?
     `url(${d.banner}) center/cover` :
     "grey";
@@ -457,7 +457,7 @@ window.openTag = async function(tagId) {
   const tagTweetDocs = await getDocs(tagTweetsRef);
 
   if (tagTweetDocs.empty) {
-    tweetList.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="image/404.gif"></div><h4 style="text-align:center;">the Wynt was previously deleted :/</h4>`;
+    tweetList.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="/image/404.gif"></div><h4 style="text-align:center;">the Wynt was previously deleted :/</h4>`;
     return;
   }
 
@@ -491,7 +491,7 @@ window.openTag = async function(tagId) {
   await renderBatch();
 
   if (renderedCount === 0) {
-    tweetList.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
+    tweetList.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="/image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
   }
 };
 
@@ -506,7 +506,7 @@ followOverlay.innerHTML = `
   <div class="user-box">
     <header>
       <button onclick="document.getElementById('followOverlay').classList.add('hidden')" class="close-btn" style="position:absolute;top:20px;left:0;">
-        <img src="image/leftArrow.svg">
+        <img src="/image/leftArrow.svg">
       </button>
       <h2 id="followOverlayTitle" style="text-align:right;"></h2>
     </header>
@@ -536,7 +536,7 @@ async function loadFollowUsers(type, userId, searchTerm = "") {
 
   const snap = await getDocs(q);
   if (snap.empty && followList.length === 0) {
-    document.getElementById("followList").innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
+    document.getElementById("followList").innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="/image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
     return;
   }
   followLastDoc = snap.docs[snap.docs.length - 1];
@@ -554,7 +554,7 @@ async function loadFollowUsers(type, userId, searchTerm = "") {
     item.style.cssText = "display:flex;gap:10px;padding:10px 0;border-bottom:var(--border);align-items:center";
     item.innerHTML = `
     <div style="display:flex;gap:15px;align-items:center;flex:1;">
-    <img src="${data.photoURL}" onerror="this.src='image/default-avatar.jpg'"
+    <img src="${data.photoURL}" onerror="this.src='/image/default-avatar.jpg'"
       style="width:40px;height:40px;border-radius:50%;object-fit:cover;">
     <strong class="user-link" data-uid="${theirId}" style="cursor:pointer">${escapeHTML(data.displayName || "Unnamed")}</strong>
     <button class="mini-follow-btn"
@@ -711,7 +711,7 @@ async function loadUserMentionedTweets(uid) {
   mloadMore.style.display = "none";
 
   if (snap.empty && mentionedLoadedCount === 0) {
-    usermentionedList.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
+    usermentionedList.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="/image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
     return;
   }
 
