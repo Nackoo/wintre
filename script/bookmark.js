@@ -31,7 +31,7 @@ async function loadBookmarks(initial = false) {
 
   const snap = await getDocs(q);
   if (snap.empty && initial) {
-    bookmarkList.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
+    bookmarkList.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="/image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
     loadMoreBtn.style.display = "none";
     loading = false;
     return;
@@ -64,7 +64,7 @@ async function loadBookmarks(initial = false) {
       deletedBox.style.alignItems = 'center';
       deletedBox.innerHTML = `
         <i style="color:gray;">This wint is unavailable</i>
-        <img src="image/trash.svg" alt="Remove" style="width: 20px; height: 20px; cursor: pointer; margin-left: 10px;">
+        <img src="/image/trash.svg" alt="Remove" style="width: 20px; height: 20px; cursor: pointer; margin-left: 10px;">
       `;
       const trashIcon = deletedBox.querySelector('img');
       trashIcon.addEventListener('click', async () => {
@@ -85,7 +85,7 @@ async function loadBookmarks(initial = false) {
   loading = false;
 }
 
-document.querySelector('.smallbar img[src="image/bookmark.svg"]').addEventListener('click', async () => {
+document.querySelector('.smallbar img[src="/image/bookmark.svg"]').addEventListener('click', async () => {
   if (!bookmarksLoadedOnce) { 
     bookmarkList.innerHTML = '';
     lastDoc = null;
@@ -109,7 +109,6 @@ function listenBookmarks() {
   if (!auth.currentUser) return;
   const uid = auth.currentUser.uid;
 
-  // cleanup old listener if exists
   if (unsubscribeBookmarks) unsubscribeBookmarks();
 
   const q = query(
@@ -118,11 +117,11 @@ function listenBookmarks() {
   );
 
   unsubscribeBookmarks = onSnapshot(q, async (snap) => {
-    bookmarkList.innerHTML = ""; // clear list first
+    bookmarkList.innerHTML = ""; 
 
     if (snap.empty) {
       bookmarkList.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;">
-        <img style="height:250px;width:250px;" src="image/404.gif">
+        <img style="height:250px;width:250px;" src="/image/404.gif">
       </div>
       <h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
       return;
