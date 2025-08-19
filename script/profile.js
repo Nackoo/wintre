@@ -105,7 +105,7 @@ function escapeHTML(text) {
   );
 }
 
-document.querySelector('.smallbar img[src="image/settings.svg"]').addEventListener("click", async () => {
+document.querySelector('.smallbar img[src="/image/settings.svg"]').addEventListener("click", async () => {
   document.getElementById("profileSubOverlay").classList.remove("hidden");
 
   const uid = auth.currentUser?.uid;
@@ -192,10 +192,10 @@ saveButton.addEventListener("click", async () => {
     return;
   }
 
-  document.querySelector('.smallbar img[src="image/settings-filled.svg"]').classList.add('hidden');
-  document.querySelector('.smallbar img[src="image/settings.svg"]').classList.remove('hidden');
-  document.querySelector('.smallbar img[src="image/home-filled.svg"]').classList.remove('hidden');
-  document.querySelector('.smallbar img[src="image/home.svg"]').classList.add('hidden');
+  document.querySelector('.smallbar img[src="/image/settings-filled.svg"]').classList.add('hidden');
+  document.querySelector('.smallbar img[src="/image/settings.svg"]').classList.remove('hidden');
+  document.querySelector('.smallbar img[src="/image/home-filled.svg"]').classList.remove('hidden');
+  document.querySelector('.smallbar img[src="/image/home.svg"]').classList.add('hidden');
 
   const userRef = doc(db, "users", uid);
   await setDoc(userRef, {
@@ -225,7 +225,7 @@ saveButton.addEventListener("click", async () => {
   await applyProfileUpdatesToAll(uid, newName, newAvatar);
 });
 
-document.querySelector('.smallbar img[src="image/user.svg"]').addEventListener("click", async () => {
+document.querySelector('.smallbar img[src="/image/user.svg"]').addEventListener("click", async () => {
 
   const uid = auth.currentUser?.uid;
   if (!uid) return;
@@ -399,7 +399,7 @@ async function loadUserMentionedTweets(uid) {
   const snap = await getDocs(q);
 
   if (snap.empty && mentionedLoadedCount === 0) {
-    usermentionedList.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
+    usermentionedList.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="/image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
     mloadMore.style.display = "none";
     return;
   } else {
@@ -446,7 +446,7 @@ function listenUserTweets(uid) {
     list.innerHTML = ""; 
 
     if (snap.empty) {
-      list.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
+      list.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="/image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
       return;
     }
 
@@ -468,7 +468,7 @@ function listenMentionedTweets(uid) {
     usermentionedList.innerHTML = "";
 
     if (snap.empty) {
-      usermentionedList.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
+      usermentionedList.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="/image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
       return;
     }
 
