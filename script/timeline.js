@@ -26,7 +26,7 @@ export async function loadFollowingTweets(reset = false) {
   const followedUserIds = followingSnap.docs.map(doc => doc.id);
 
   if (followedUserIds.length === 0) {
-    followingContainer.innerHTML = `<div style="display:flex;justify-content:center;opacity:0.2;"><img style="height:250px;width:250px;" src="/image/404.png"></div>`;
+    followingContainer.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="/image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
     followingLoading = false;
     return;
   }
