@@ -5,6 +5,7 @@ import { sendCommentNotification, sendReplyNotification, listenForUnreadNotifica
 import { createClient, SUPABASE_URL, SUPABASE_ANON_KEY, MAX_FILE_BYTES, supabase } from "./firebase.js";
 import { uploadToSupabase, compressImageTo480, showImagePreview, readFileAsBase64 } from "./attachments.js";
 import { bookmark, profile, profilesub, user, usersub, tag, viewer, tweet, retweet, notification, comment, bookmarksvg, homesvg, usersvg, searchsvg, settingssvg, notifsvg, bookmarkfilled, homefilled, userfilled, searchfilled, settingsfilled, notiffilled } from "./nonsense.js"
+import { viewTweet } from "./tweetViewer.js";
 
 let lastTweet = null;
 let loadingMore = false;
@@ -390,7 +391,7 @@ function setupSoundToggle(tweetElement) {
 
     const allBtns = document.querySelectorAll(".sound-toggle-btn");
     allBtns.forEach(button => {
-      button.innerHTML = anyMuted ? "<img src='image/volume.svg'>" : "<img src='image/volume-muted.svg'>";
+      button.innerHTML = anyMuted ? "<img src='/image/volume.svg'>" : "<img src='/image/volume-muted.svg'>";
     });
   });
 }
@@ -579,7 +580,7 @@ export async function renderTweet(t, tweetId, user, action = "prepend", containe
         cursor: pointer;
         color: white;
       ">
-                  <img src='image/volume-muted.svg'>
+                  <img src='/image/volume-muted.svg'>
                 </button>
               </div>`;
 
@@ -605,7 +606,7 @@ export async function renderTweet(t, tweetId, user, action = "prepend", containe
         cursor: pointer;
         color: white;
       ">
-                  <img src='image/volume-muted.svg'>
+                  <img src='/image/volume-muted.svg'>
                 </button>
               </div>`;
     }
@@ -628,7 +629,7 @@ export async function renderTweet(t, tweetId, user, action = "prepend", containe
         retweetHTML = `
               <div class="tweet retweet original-tweet-link" data-id="${t.retweetOf}">
                 <div class="flex" style="gap:10px; align-items:center;">
-                  <img class="avatar" src="${escapeHTML(rtAvatar)}" onerror="this.src='image/default-avatar.jpg'" width="30">
+                  <img class="avatar" src="${escapeHTML(rtAvatar)}" onerror="this.src='/image/default-avatar.jpg'" width="30">
                   <strong class="user-link" data-uid="${rt.uid}" style="cursor:pointer">${escapeHTML(rtDisplayName)}</strong>
                   <span style="color:grey;">${rDate}</span>
                 </div>
@@ -642,7 +643,7 @@ export async function renderTweet(t, tweetId, user, action = "prepend", containe
         retweetHTML = `
               <div class="tweet retweet original-tweet-link" data-id="${t.retweetOf}">
                 <div class="flex" style="gap:10px; align-items:center;">
-                  <img class="avatar" src="${escapeHTML(rtAvatar)}" onerror="this.src='image/default-avatar.jpg'" width="30">
+                  <img class="avatar" src="${escapeHTML(rtAvatar)}" onerror="this.src='/image/default-avatar.jpg'" width="30">
                   <strong class="user-link" data-uid="${rt.uid}" style="cursor:pointer">${escapeHTML(rtDisplayName)}</strong>
                   <span style="color:grey;">${rDate}</span>
                 </div>
@@ -655,7 +656,7 @@ export async function renderTweet(t, tweetId, user, action = "prepend", containe
         retweetHTML = `
               <div class="tweet retweet original-tweet-link" data-id="${t.retweetOf}">
                 <div class="flex" style="gap:10px; align-items:center;">
-                  <img class="avatar" src="${escapeHTML(rtAvatar)}" onerror="this.src='image/default-avatar.jpg'" width="30">
+                  <img class="avatar" src="${escapeHTML(rtAvatar)}" onerror="this.src='/image/default-avatar.jpg'" width="30">
                   <strong class="user-link" data-uid="${rt.uid}" style="cursor:pointer">${escapeHTML(rtDisplayName)}</strong>
                   <span style="color:grey;">${rDate}</span>
                 </div>
@@ -673,7 +674,7 @@ export async function renderTweet(t, tweetId, user, action = "prepend", containe
         retweetHTML = `
               <div class="tweet retweet original-tweet-link" data-id="${t.retweetOf}">
                 <div class="flex" style="gap:10px; align-items:center;">
-                  <img class="avatar" src="${escapeHTML(rtAvatar)}" onerror="this.src='image/default-avatar.jpg'" width="30">
+                  <img class="avatar" src="${escapeHTML(rtAvatar)}" onerror="this.src='/image/default-avatar.jpg'" width="30">
                   <strong class="user-link" data-uid="${rt.uid}" style="cursor:pointer">${escapeHTML(rtDisplayName)}</strong>
                   <span style="color:grey;">${rDate}</span>
                 </div>
@@ -688,7 +689,7 @@ export async function renderTweet(t, tweetId, user, action = "prepend", containe
         retweetHTML = `
               <div class="tweet retweet original-tweet-link" data-id="${t.retweetOf}">
                 <div class="flex" style="gap:10px; align-items:center;">
-                  <img class="avatar" src="${escapeHTML(rtAvatar)}" onerror="this.src='image/default-avatar.jpg'" width="30">
+                  <img class="avatar" src="${escapeHTML(rtAvatar)}" onerror="this.src='/image/default-avatar.jpg'" width="30">
                   <strong class="user-link" data-uid="${rt.uid}" style="cursor:pointer">${escapeHTML(rtDisplayName)}</strong>
                   <span style="color:grey;">${rDate}</span>
                 </div>
@@ -708,7 +709,7 @@ export async function renderTweet(t, tweetId, user, action = "prepend", containe
   const tweetHTML = `
               <div class="tweet" id="tweet-${tweetId}" data-id="${tweetId}">
                 <div class="flex" style="gap:10px">
-                  <img class="avatar" src="${escapeHTML(avatar)}" onerror="this.src='image/default-avatar.jpg'" width="30" />
+                  <img class="avatar" src="${escapeHTML(avatar)}" onerror="this.src='/image/default-avatar.jpg'" width="30" />
                   <strong class="user-link" data-uid="${t.uid}" style="cursor:pointer;font-size:17px;">${escapeHTML(displayName)}</strong>
                   <span style="color:grey;font-size:13px">${dateStr}</span>
                 </div>
@@ -717,21 +718,24 @@ export async function renderTweet(t, tweetId, user, action = "prepend", containe
                 ${retweetHTML}
                 <div class="flex">
                   <span style="cursor:pointer" class="like-btn" id="likeBtn-${tweetId}">
-                    ${isLiked ? `<img src="image/filled-heart.svg">` : `<img src="image/heart.svg">`}
+                    ${isLiked ? `<img src="/image/filled-heart.svg">` : `<img src="/image/heart.svg">`}
                     <span id="likeCount-${tweetId}">${likeCount}</span>
                   </span>
                   <span style="cursor:pointer" class="comment-btn" data-id="${tweetId}">
-                    <img src="image/message.svg"> ${commentCount}
+                    <img src="/image/message.svg"> ${commentCount}
                   </span>
                   <span style="cursor:pointer" class="retweet-btn" data-id="${tweetId}">
-                    <img src="image/rewint.svg"> ${retweetCount}
+                    <img src="/image/rewint.svg"> ${retweetCount}
                   </span>
+
+                  <div class="tweet-menu hidden">
+                    <div class="menu-item share-btn" data-id="${tweetId}"><img src="/image/share.svg"> share this Wynt</div>
+                    <div class="menu-item bookmark-btn" id="bookmarkBtn-${tweetId}">${isBookmarked ? `<img src="/image/bookmark-filled.svg"> Unbookmark this Wynt` : `<img src="/image/bookmark.svg"> Bookmark this Wynt`}</div>
+                    ${auth.currentUser.uid === t.uid ? `<div class="menu-item delete-btn" data-id="${tweetId}"><img src="/image/trash.svg"> Delete this Wynt</div>` : ""}
+                  </div>
                   <div style="margin-left:auto;">
-                    <span style="cursor:pointer;" class="bookmark-btn" id="bookmarkBtn-${tweetId}">
-                      ${isBookmarked ? `<img src="image/bookmark-filled.svg">` : `<img src="image/bookmark.svg">`}
-                    </span>
-                    ${auth.currentUser.uid === t.uid ? `<span style="cursor:pointer;margin-left:5px" class="delete-btn" data-id="${tweetId}"><img src="image/trash.svg"></span>` : ""}
-                    <span style="margin-left:10px"><img src="image/chart.svg"> ${viewCount}</span>
+                    <span style="cursor:pointer" class="menubtn"><img src="/image/three-dots.svg"></span>
+                    <span class="viewbtn" style="margin-left:10px"><img src="/image/chart.svg"> ${viewCount}</span>
                   </div>
                 </div>
               </div>
@@ -794,6 +798,15 @@ async function deleteSubcollectionDocs(tweetId, subcollectionName) {
 }
 
 document.body.addEventListener("click", async (e) => {
+  const menubtn = e.target.closest(".menubtn");
+  if (menubtn) {
+    const tweet = menubtn.closest(".tweet"); 
+    const menu = tweet.querySelector(".tweet-menu"); 
+    document.querySelectorAll(".tweet-menu").forEach(m => m.classList.add("hidden"));
+    if (menu) {
+      menu.classList.toggle("hidden");
+    }
+  }
   const deleteBtn = e.target.closest(".delete-btn");
   if (!deleteBtn) return;
 
@@ -853,8 +866,10 @@ document.body.addEventListener("click", async (e) => {
     posts: increment(-1)
   });
 
-  const el = document.getElementById("tweet-" + tweetId);
-  if (el) el.remove();
+  const tweetEl = document.getElementById(`tweet-${tweetId}`);
+  if (tweetEl) {
+    tweetEl.remove();
+  }
 });
 
 const observer = new IntersectionObserver(async (entries, obs) => {
@@ -1158,15 +1173,31 @@ document.body.addEventListener("click", async (e) => {
 
     if (snap.exists()) {
       await deleteDoc(bookmarkRef);
-      btn.innerHTML = `<img src="image/bookmark.svg">`;
+      btn.innerHTML = `<img src="/image/bookmark.svg"> Bookmark this Wynt`;
     } else {
       await setDoc(bookmarkRef, {
         bookmarkedAt: new Date()
       });
-      btn.innerHTML = `<img src="image/bookmark-filled.svg">`;
+      btn.innerHTML = `<img src="/image/bookmark-filled.svg"> Unbookmark this Wynt`;
     }
   }
 
+});
+
+document.body.addEventListener("click", (e) => {
+  if (!e.target.closest(".menubtn") && !e.target.closest(".tweet-menu")) {
+    document.querySelectorAll(".tweet-menu").forEach(m => m.classList.add("hidden"));
+  }
+  const viewBtn = e.target.closest(".viewbtn");
+if (viewBtn) {
+  document.getElementById("viewOverlay").classList.remove("hidden");
+}
+
+const closeViewBtn = e.target.closest("#closeViewOverlay");
+const closeview = e.target.closest("#closeviewover")
+if (closeViewBtn || closeview || e.target.id === "viewOverlay") {
+  document.getElementById("viewOverlay").classList.add("hidden");
+}
 });
 
 document.getElementById("closeComment").onclick = () => {
@@ -1242,9 +1273,9 @@ async function loadComments(tweetId) {
     if (permission === "everyone") {
       commentStatus.innerHTML = "";
     } else if (permission === "following") {
-      commentStatus.innerHTML = `<img src="image/exclamation.svg"> the creator has chosen only people they follow can comment`;
+      commentStatus.innerHTML = `<img src="/image/exclamation.svg"> the creator has chosen only people they follow can comment`;
     } else if (permission === "mentioned") {
-      commentStatus.innerHTML = `<img src="image/exclamation.svg"> the creator has chosen only people they mention can comment`;
+      commentStatus.innerHTML = `<img src="/image/exclamation.svg"> the creator has chosen only people they mention can comment`;
     }
   }
 
@@ -1297,15 +1328,15 @@ async function loadComments(tweetId) {
 
     commentHTML.innerHTML = `
                     <div class="flex" id="pinned" style="gap:3px;display:none;">
-                      <img src="image/pin.svg" style="width:22px;height:22px;">
+                      <img src="/image/pin.svg" style="width:22px;height:22px;">
                       <p style="color:grey;margin:0;font-size:14px;">pinned</p>
                     </div>
                     <div class="flex comment-header" style="gap:10px">
-                      <img src="${escapeHTML(avatar)}" onerror="this.src='image/default-avatar.jpg'" class="avatar comment-avatar">
+                      <img src="${escapeHTML(avatar)}" onerror="this.src='/image/default-avatar.jpg'" class="avatar comment-avatar">
                       <div class="user-link" data-uid="${d.uid}" style="cursor:pointer; ${d.uid}">
                         @${escapeHTML(displayName)}
                       </div>
-                      ${likedByCreator ? `<div style="height:24px;width:24px;" title="liked by the creator"><img src="image/liked.svg"></div>` : ""}
+                      ${likedByCreator ? `<div style="height:24px;width:24px;" title="liked by the creator"><img src="/image/liked.svg"></div>` : ""}
                       <span class="comment-date">${formatDate(d.createdAt)}</span>
                     </div>
                     <div class="comment-body">
@@ -1313,7 +1344,7 @@ async function loadComments(tweetId) {
                       ${d.media && d.mediaType === "image" ? `<img src="${d.media}" class="attachment1" style="max-width:100%;max-height:200px;margin-bottom:5px;border-radius:8px">` : ""}
                       <div class="flex" style="margin:0;gap:13px;">
                         <span class="comment-like-btn" data-id="${commentId}" data-tweet="${tweetId}" style="cursor:pointer;display:flex;align-items:center;gap:3px;">
-                          ${isCommentLiked ? `<img src="image/filled-heart.svg" style="width:16px;height:16px;">` : `<img src="image/heart.svg" style="width:16px;height:16px;">`}
+                          ${isCommentLiked ? `<img src="/image/filled-heart.svg" style="width:16px;height:16px;">` : `<img src="/image/heart.svg" style="width:16px;height:16px;">`}
                           <span id="comment-like-count-${commentId}">${commentLikeCount}</span>
                         </span>
                         <div class="reply-actions">${replyButtonHTML}</div>
@@ -1323,15 +1354,15 @@ async function loadComments(tweetId) {
                         </button>
                         </div>
                         ${auth.currentUser.uid === d.uid ? `
-                        <span class="comment-delete-btn" data-id="${commentId}" data-tweet="${tweetId}" style="cursor:pointer;margin-left:auto;"><img src="image/trash.svg"></span>` : ""}
+                        <span class="comment-delete-btn" data-id="${commentId}" data-tweet="${tweetId}" style="cursor:pointer;margin-left:auto;"><img src="/image/trash.svg"></span>` : ""}
                       </div>
                       <div class="reply-box hidden" id="reply-box-${commentId}">
                         <textarea class="reply-text" placeholder="thoughts...?"></textarea>
                         <div class="attachment" id="replyPreview-${commentId}"></div>
                         <div class="flex">
                           <button class="send-reply-btn" data-id="${commentId}">Post</button>
-                          <input type="file" id="replyMedia-${commentId}" class="comment-media-input hidden-input" accept="image/*" />
-                          <label class="custom-file-btn" for="replyMedia-${commentId}"><img src="image/upload.svg"></label>
+                          <input type="file" id="replyMedia-${commentId}" class="comment-media-input hidden-input" accept="/image/*" />
+                          <label class="custom-file-btn" for="replyMedia-${commentId}"><img src="/image/upload.svg"></label>
                           <button style="margin-left:auto" class="cancel-reply-btn no-bg">Cancel</button>
                         </div>
                         <div class="reply-list" id="replies-${commentId}"></div>
@@ -1631,7 +1662,6 @@ document.body.addEventListener("click", async (e) => {
     overlay.classList.remove("hidden");
     overlayContent.innerHTML = `<img src="${img.src}" />`;
   }
-
 });
 
 async function loadReplies(tweetId, commentId) {
@@ -1699,7 +1729,7 @@ async function loadReplies(tweetId, commentId) {
     replyHTML.className = "reply-block";
     replyHTML.innerHTML = `
     <div class="flex comment-header" style="gap:10px">
-      <img src="${escapeHTML(avatar)}" onerror="this.src='image/default-avatar.jpg'" class="avatar comment-avatar">
+      <img src="${escapeHTML(avatar)}" onerror="this.src='/image/default-avatar.jpg'" class="avatar comment-avatar">
       <div class="user-link" data-uid="${r.uid}" style="cursor:pointer;">
         @${escapeHTML(displayName)}
       </div>
@@ -1709,9 +1739,9 @@ async function loadReplies(tweetId, commentId) {
     ${r.media && r.mediaType === "image" ? `<img src="${r.media}" class="attachment1" style="max-width:100%;max-height:200px;margin-bottom:5px;border-radius:8px">` : ""}
     <div class="flex">
     <span class="reply-like-btn" data-reply="${rId}" data-comment="${commentId}" data-tweet="${tweetId}" style="cursor:pointer;">
-      ${replyisLiked ? `<img src="image/filled-heart.svg">` : `<img src="image/heart.svg">`} <span id="reply-like-count-${rId}">${replylikeCount}</span>
+      ${replyisLiked ? `<img src="/image/filled-heart.svg">` : `<img src="/image/heart.svg">`} <span id="reply-like-count-${rId}">${replylikeCount}</span>
     </span>
-      ${auth.currentUser.uid === r.uid ? `<span class="reply-delete-btn" data-comment="${commentId}" data-reply="${rId}" data-tweet="${tweetId}" style="margin-left:auto;cursor:pointer;margin-left:auto;"><img src="image/trash.svg"></span>` : ""}
+      ${auth.currentUser.uid === r.uid ? `<span class="reply-delete-btn" data-comment="${commentId}" data-reply="${rId}" data-tweet="${tweetId}" style="margin-left:auto;cursor:pointer;margin-left:auto;"><img src="/image/trash.svg"></span>` : ""}
     </div>
   `;
 
@@ -1749,7 +1779,7 @@ document.body.addEventListener("click", async (e) => {
 
     if (snap.exists()) {
       await deleteDoc(ref);
-      if (icon) icon.src = "image/heart.svg";
+      if (icon) icon.src = "/image/heart.svg";
       if (countSpan) countSpan.textContent = `${parseInt(countSpan.textContent || 1) - 1}`;
       const updateData = {
         likeCount: increment(-1)
@@ -1760,7 +1790,7 @@ document.body.addEventListener("click", async (e) => {
       await setDoc(ref, {
         likedAt: new Date()
       });
-      if (icon) icon.src = "image/filled-heart.svg";
+      if (icon) icon.src = "/image/filled-heart.svg";
       if (countSpan) countSpan.textContent = `${parseInt(countSpan.textContent || 0) + 1}`;
       const updateData = {
         likeCount: increment(1)
@@ -1788,7 +1818,7 @@ document.body.addEventListener("click", async (e) => {
 
     if (snap.exists()) {
       await deleteDoc(ref);
-      if (icon) icon.src = "image/heart.svg";
+      if (icon) icon.src = "/image/heart.svg";
       if (countSpan) countSpan.textContent = `${parseInt(countSpan.textContent || 1) - 1}`;
 
       const updateData = {
@@ -1802,7 +1832,7 @@ document.body.addEventListener("click", async (e) => {
       await setDoc(ref, {
         likedAt: new Date()
       });
-      if (icon) icon.src = "image/filled-heart.svg";
+      if (icon) icon.src = "/image/filled-heart.svg";
       if (countSpan) countSpan.textContent = `${parseInt(countSpan.textContent || 0) + 1}`;
 
       const updateData = {
@@ -1825,7 +1855,7 @@ document.body.addEventListener("click", async (e) => {
     if (snap.exists()) {
       await deleteDoc(tweetLikeRef);
 
-      btn.innerHTML = `<img src="image/heart.svg"><span id="likeCount-${tweetId}">${(parseInt(countSpan.textContent) || 1) - 1}</span>`;
+      btn.innerHTML = `<img src="/image/heart.svg"><span id="likeCount-${tweetId}">${(parseInt(countSpan.textContent) || 1) - 1}</span>`;
       await updateDoc(doc(db, "tweets", tweetId), {
         likeCount: increment(-1)
       });
@@ -1836,7 +1866,7 @@ document.body.addEventListener("click", async (e) => {
       };
       await setDoc(tweetLikeRef, likeData);
 
-      btn.innerHTML = `<img src="image/filled-heart.svg"><span id="likeCount-${tweetId}">${(parseInt(countSpan.textContent) || 0) + 1}</span>`;
+      btn.innerHTML = `<img src="/image/filled-heart.svg"><span id="likeCount-${tweetId}">${(parseInt(countSpan.textContent) || 0) + 1}</span>`;
       await updateDoc(doc(db, "tweets", tweetId), {
         likeCount: increment(1)
       });
@@ -1926,7 +1956,7 @@ document.body.addEventListener("click", async (e) => {
   document.getElementById("retweetOriginal").innerHTML = `
                       <div class="tweet retweet">
                         <div class="flex" style="gap:10px">
-                          <img class="avatar" src="${avatar}" onerror="this.src='image/default-avatar.jpg'" width="30">
+                          <img class="avatar" src="${avatar}" onerror="this.src='/image/default-avatar.jpg'" width="30">
                           <strong class="user-link" data-uid="${t.uid}" style="cursor:pointer;font-size:17px">${escapeHTML(displayName)}</strong>
                           <span style="color:grey;font-size:13px">${dateStr}</span>
                         </div>
@@ -2129,5 +2159,28 @@ mediaInput1.addEventListener('change', function(e) {
     preview.style.maxHeight = '333px';
     preview.controls = file.type.startsWith('video');
     attachment1.appendChild(preview);
+  }
+});
+
+window.addEventListener("DOMContentLoaded", () => {
+  const path = window.location.pathname;
+  const match = path.match(/^\/wynt\/([a-zA-Z0-9_-]+)$/);
+  if (match) {
+    const tweetId = match[1];
+    viewTweet(tweetId);
+  }
+});
+
+document.body.addEventListener("click", async (e) => {
+  const shareBtn = e.target.closest(".share-btn");
+  if (shareBtn) {
+    const tweetId = shareBtn.dataset.id;
+    const url = `${window.location.origin}/wynt/${tweetId}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      alert("Link copied!");
+    } catch {
+      prompt("Copy this link:", url);
+    }
   }
 });
