@@ -3,27 +3,35 @@ import { renderTweet } from "./index.js";
 
 export async function viewTweet(tweetId) {
   const overlay = document.getElementById("tweetViewer");
-  const userBox = overlay.querySelector(".user-box1");
+  const userBox = overlay.querySelector("#appendTweet"); 
   userBox.innerHTML = "";
   overlay.classList.remove("hidden");
   document.body.classList.add('no-scroll');
-  document.getElementById('tweetViewer').classList.add('hidden');
 
   await loadTweetRecursive(tweetId, userBox);
 }
 
 async function loadTweetRecursive(tweetId, container) {
   const tweetDoc = await getDoc(doc(db, "tweets", tweetId));
-  if (!tweetDoc.exists()) return null;
+
+  if (!tweetDoc.exists()) {
+    container.innerHTML = `
+      <div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;">
+        <img style="height:250px;width:250px;" src="/image/404.gif">
+      </div>
+      <h4 style="text-align:center;">the Wynt was previously deleted :/</h4>
+    `;
+    return null;
+  }
+
   const tweetData = tweetDoc.data();
 
   const tweetDiv = document.createElement("div");
   tweetDiv.className = "tweet-box";
   tweetDiv.dataset.id = tweetId;
   tweetDiv.innerHTML = ``;
-  container.appendChild(tweetDiv);
-
   await renderTweet(tweetData, tweetId, auth.currentUser, "replace", tweetDiv);
+  container.appendChild(tweetDiv);
 
   if (tweetData.originalTweetId) {
     const originalContainer = document.createElement("div");
