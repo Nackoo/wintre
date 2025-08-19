@@ -73,7 +73,7 @@ function createNotificationElement(notification) {
     </span>
   </p>
   <button class="delete-notif-btn" style="background:none;margin-left:auto;">
-    <img src="image/trash.svg">
+    <img src="/image/trash.svg">
   </button>
 </div>
   `;
@@ -128,7 +128,7 @@ export async function handleNotificationClick({
   const tweetSnap = await getDoc(doc(db, "tweets", tweetId));
 
   if (!tweetSnap.exists()) {
-    box.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="image/404.gif"></div><h4 style="text-align:center;">the Wynt was previously deleted :/</h4>`;
+    box.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="/image/404.gif"></div><h4 style="text-align:center;">the Wynt was previously deleted :/</h4>`;
     return;
   }
 
@@ -212,7 +212,7 @@ export async function loadNotifications(initial = false) {
 
   if (snap.empty && initial) {
     notificationsContainer.innerHTML = `
-      <div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>
+      <div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="/image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>
     `;
     notificationLoading = false;
     return;
