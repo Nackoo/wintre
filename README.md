@@ -29,6 +29,7 @@ service cloud.firestore {
     match /users/{userId}/notifications/{notificationId} {
       allow read, update, delete: if request.auth != null && request.auth.uid == userId;
       allow create: if request.auth != null && request.auth.uid != userId;
+      allow delete: if request.auth != null;
     }
 
     // Users and subcollections
