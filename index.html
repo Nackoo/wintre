@@ -42,6 +42,9 @@
       </header>
       <div id="my-banner" class="flex banner">
         <div id="my-pfp"></div>
+        <button class="copy-link-btn" id="copyMyLinkBtn" data-uid="" title="Copy profile link">
+          <img src="/image/link.svg" width="20" height="20">
+        </button>
       </div>
       <h2 id="my-name" style="margin-top:80px;margin-bottom:0;"></h2>
       <p id="my-description"></p>
@@ -103,7 +106,7 @@
     <div class="user-box">
       <br>
       <header style="display: flex; gap: 15px;padding:15px 0">
-        <button onclick="hideuser()" style="background: none;"><img src="/image/x.svg"></button>
+        <button onclick="hideuser()" style="background: none;"><img src="/image/leftArrow.svg"></button>
         <input type="text" placeholder="search anything"></input>
       </header>
       <div class="tab-container">
@@ -152,6 +155,9 @@
       </header>
       <div id="user-banner" class="flex banner">
         <div id="user-pfp"></div>
+        <button class="copy-link-btn" id="copyUserLinkBtn" data-uid="" title="Copy profile link">
+          <img src="/image/link.svg" width="20" height="20">
+        </button>
         <button id="followBtn" class="follow-btn">Follow</button>
       </div>
       <h2 id="user-name" style="margin-top:80px;margin-bottom:0;"></h2>
