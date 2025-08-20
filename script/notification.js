@@ -312,7 +312,7 @@ export async function sendCommentNotification(tweetId, commentText) {
     tweetText: tweetSnap.data().text || "",
     read: false
   });
-
+  await enforceNotificationLimit(targetUserId);
 }
 
 export async function sendReplyNotification(tweetId, commentId, replyText, originalCommenterId, replyToText) {
@@ -340,6 +340,7 @@ export async function sendReplyNotification(tweetId, commentId, replyText, origi
     commentId,
     read: false
   });
+  await enforceNotificationLimit(targetUserId);
 }
 
 export async function sendMentionNotification(tweetId, mentionedUserId) {
@@ -368,6 +369,7 @@ export async function sendMentionNotification(tweetId, mentionedUserId) {
     tweetText: tweetSnap.data().text || "",
     read: false
   });
+  await enforceNotificationLimit(targetUserId);
 }
 
 export async function sendRetweetNotification(originalTweetId, replyText, retweetId) {
@@ -401,6 +403,7 @@ export async function sendRetweetNotification(originalTweetId, replyText, retwee
     tweetText: tweetSnap.data().text || "",
     read: false
   });
+  await enforceNotificationLimit(targetUserId);
 }
 
 export async function sendCommentMentionNotification(tweetId, mentionedUserId, commentText) {
@@ -430,6 +433,7 @@ export async function sendCommentMentionNotification(tweetId, mentionedUserId, c
     tweetText: tweetSnap.data().text || "",
     read: false
   });
+  await enforceNotificationLimit(targetUserId);
 }
 
 export async function sendReplyMentionNotification(tweetId, commentId, mentionedUserId, replyText) {
@@ -456,6 +460,7 @@ export async function sendReplyMentionNotification(tweetId, commentId, mentioned
     commentId,
     read: false
   });
+  await enforceNotificationLimit(targetUserId);
 }
 
 export async function sendFollowNotification(targetUserId) {
@@ -481,6 +486,8 @@ export async function sendFollowNotification(targetUserId) {
     createdAt: serverTimestamp(),
     read: false
   });
+
+  await enforceNotificationLimit(targetUserId);
 }
 
 document.getElementById("notifications").addEventListener("scroll", async () => {
@@ -497,3 +504,21 @@ document.getElementById("notifications").addEventListener("scroll", async () => 
     }
   }
 });
+
+async function enforceNotificationLimit(userId, limitCount = 30) {
+  const notificationsRef = collection(db, "users", userId, "notifications");
+
+  const q = query(notificationsRef, orderBy("createdAt", "asc"));
+  const snap = await getDocs(q);
+
+  if (snap.size > limitCount) {
+    const excess = snap.size - limitCount;
+    const batch = writeBatch(db);
+
+    snap.docs.slice(0, excess).forEach(docSnap => {
+      batch.delete(docSnap.ref);
+    });
+
+    await batch.commit();
+  }
+}
