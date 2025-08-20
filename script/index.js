@@ -3,7 +3,7 @@ import { extractMentions } from './mention.js';
 import { handleTags } from './tags.js';
 import { sendCommentNotification, sendReplyNotification, listenForUnreadNotifications, loadNotifications, sendMentionNotification, sendRetweetNotification, sendReplyMentionNotification, sendCommentMentionNotification } from './notification.js';
 import { createClient, SUPABASE_URL, SUPABASE_ANON_KEY, MAX_FILE_BYTES, supabase } from "./firebase.js";
-import { uploadToSupabase, compressImageTo480, showImagePreview, readFileAsBase64 } from "./attachments.js";
+import { uploadToSupabase, compressImageTo480, showImagePreview, readFileAsBase64, setupVideoAutoplayOnVisibility } from "./attachments.js";
 import { bookmark, profile, profilesub, user, usersub, tag, viewer, tweet, retweet, notification, comment, bookmarksvg, homesvg, usersvg, searchsvg, settingssvg, notifsvg, bookmarkfilled, homefilled, userfilled, searchfilled, settingsfilled, notiffilled } from "./nonsense.js"
 import { viewTweet } from "./tweetViewer.js";
 
@@ -45,14 +45,6 @@ async function retryWhenBackOnline() {
 
 onAuthStateChanged(auth, async (user) => {
   if (user) {
-
-    if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") {
-      try {
-        await Notification.requestPermission();
-      } catch (err) {
-        console.error("Notification permission request failed:", err);
-      }
-    }
     loadTweets(true);
     renderTweets(user);
     loadNotifications(true);
@@ -79,7 +71,6 @@ onAuthStateChanged(auth, async (user) => {
       }
       await setDoc(ref, {
         displayName: finalName,
-        photoURL: user.photoURL,
         createdAt: new Date(),
         posts: 0
       });
@@ -88,6 +79,9 @@ onAuthStateChanged(auth, async (user) => {
       const updateData = {};
       if (!data.createdAt) {
         updateData.createdAt = new Date();
+      }
+      if (!data.photoURL) {
+        updateData.photoURL = '/image/default-avatar.jpg'; 
       }
       if (!("posts" in data)) {
         updateData.posts = 0;
@@ -396,87 +390,6 @@ function setupSoundToggle(tweetElement) {
   });
 }
 
-function setupVideoAutoplayOnVisibility(tweetElement) {
-  const videos = tweetElement.querySelectorAll("video");
-  const visibilityMap = new Map();
-
-  function isCoveredByOverlay(video) {
-    const overlays = document.querySelectorAll('.overlay, .useroverlay, .mediaOverlay');
-    if (overlays.length === 0) return false;
-
-    const videoRect = video.getBoundingClientRect();
-
-    for (const overlay of overlays) {
-      const overlayRect = overlay.getBoundingClientRect();
-
-      if (
-        overlayRect.width > 0 &&
-        overlayRect.height > 0 &&
-        !(overlayRect.right < videoRect.left || overlayRect.left > videoRect.right ||
-          overlayRect.bottom < videoRect.top || overlayRect.top > videoRect.bottom)
-      ) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  function updateVideoState(video) {
-    const isVisible = visibilityMap.get(video) || false;
-    const covered = isCoveredByOverlay(video);
-
-    if (isVisible && !covered) {
-      video.play().catch(() => {});
-      video._isVisible = true;
-    } else {
-      video.pause();
-      video._isVisible = false;
-    }
-  }
-
-  const observer1 = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      visibilityMap.set(entry.target, entry.isIntersecting);
-      updateVideoState(entry.target);
-    });
-  }, {
-    threshold: 0.65
-  });
-
-  videos.forEach(video => {
-    if (!video.hasAttribute("muted")) {
-      video.muted = true;
-    }
-
-    video.addEventListener("ended", () => {
-      if (video._isVisible) {
-        video.play().catch(() => {});
-      }
-    });
-
-    observer1.observe(video);
-  });
-
-  function onScrollOrResize() {
-    videos.forEach(video => updateVideoState(video));
-  }
-  window.addEventListener('scroll', onScrollOrResize, {
-    passive: true
-  });
-  window.addEventListener('resize', onScrollOrResize);
-
-  const overlaysParent = document.body;
-  const mutationObserver = new MutationObserver(() => {
-    videos.forEach(video => updateVideoState(video));
-  });
-
-  mutationObserver.observe(overlaysParent, {
-    attributes: true,
-    childList: true,
-    subtree: true
-  });
-}
-
 export async function renderTweet(t, tweetId, user, action = "prepend", container = document.getElementById("timeline")) {
 
   const likeRef = doc(db, "tweets", tweetId, "likes", user.uid);
@@ -714,7 +627,9 @@ export async function renderTweet(t, tweetId, user, action = "prepend", containe
                   <span style="color:grey;font-size:13px">${dateStr}</span>
                 </div>
                 <p>${await parseMentionsToLinks(t.text)}</p>
+    <div class="tweet-media">
                 ${mediaHTML}
+    </div>
                 ${retweetHTML}
                 <div class="flex">
                   <span style="cursor:pointer" class="like-btn" id="likeBtn-${tweetId}">
@@ -732,6 +647,7 @@ export async function renderTweet(t, tweetId, user, action = "prepend", containe
                     <div class="menu-item share-btn" data-id="${tweetId}"><img src="/image/share.svg"> share this Wynt</div>
                     <div class="menu-item bookmark-btn" id="bookmarkBtn-${tweetId}">${isBookmarked ? `<img src="/image/bookmark-filled.svg"> Unbookmark this Wynt` : `<img src="/image/bookmark.svg"> Bookmark this Wynt`}</div>
                     ${auth.currentUser.uid === t.uid ? `<div class="menu-item delete-btn" data-id="${tweetId}"><img src="/image/trash.svg"> Delete this Wynt</div>` : ""}
+                    <div class="menu-item download-btn" data-id="${tweetId}"><img src="/image/download.svg"> Download attachment</div>
                   </div>
                   <div style="margin-left:auto;">
                     <span style="cursor:pointer" class="menubtn"><img src="/image/three-dots.svg"></span>
@@ -2183,4 +2099,47 @@ document.body.addEventListener("click", async (e) => {
       prompt("Copy this link:", url);
     }
   }
+  const downloadBtn = e.target.closest(".download-btn");
+  if (downloadBtn) {
+    const tweetId = downloadBtn.dataset.id;
+    const tweetEl = document.querySelector(`#tweet-${tweetId}`);
+    const mediaEl = tweetEl.querySelector(".tweet-media img, .tweet-media video source");
+
+    if (!mediaEl) return;
+    const url = mediaEl.src || mediaEl.getAttribute("src");
+    const filename = getSafeFilename(tweetId, url);
+
+    await downloadFile(url, filename);
+  }
 });
+
+function getSafeFilename(tweetId, url, index = 0) {
+  const urlParts = url.split(".");
+  const ext = urlParts[urlParts.length - 1].split("?")[0];
+  return `tweet-${tweetId}-${Date.now()}-${index}.${ext}`;
+}
+
+async function downloadFile(url, filename) {
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+
+    let ext = "";
+    if (blob.type.includes("png")) ext = ".png";
+    else if (blob.type.includes("jpeg")) ext = ".jpg";
+    else if (blob.type.includes("gif")) ext = ".gif";
+    else if (blob.type.includes("mp4")) ext = ".mp4";
+    else if (blob.type.includes("webm")) ext = ".webm";
+
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = objectUrl;
+    a.download = filename.endsWith(ext) ? filename : filename + ext;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(objectUrl);
+  } catch (err) {
+    console.error("Download failed:", err);
+  }
+}
