@@ -95,51 +95,10 @@ document.querySelector('.smallbar img[src="/image/bookmark.svg"]').addEventListe
     await loadBookmarks(true);
   } else {
     userOverlay.classList.remove('hidden'); 
-    listenBookmarks();
+    loadBookmarks();
   }
 });
 
 loadMoreBtn.addEventListener('click', () => {
   loadBookmarks();
 });
-
-let unsubscribeBookmarks = null;
-
-function listenBookmarks() {
-  if (!auth.currentUser) return;
-  const uid = auth.currentUser.uid;
-
-  if (unsubscribeBookmarks) unsubscribeBookmarks();
-
-  const q = query(
-    collection(db, "users", uid, "bookmarks"),
-    orderBy("bookmarkedAt", "desc")
-  );
-
-  unsubscribeBookmarks = onSnapshot(q, async (snap) => {
-    bookmarkList.innerHTML = ""; 
-
-    if (snap.empty) {
-      bookmarkList.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;">
-        <img style="height:250px;width:250px;" src="/image/404.gif">
-      </div>
-      <h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
-      return;
-    }
-
-    for (const docSnap of snap.docs) {
-      const tweetId = docSnap.id;
-      const tweetSnap = await getDoc(doc(db, "tweets", tweetId));
-
-      if (tweetSnap.exists()) {
-        const tweetData = tweetSnap.data();
-        await renderTweet(tweetData, tweetId, auth.currentUser, "append", bookmarkList);
-      } else {
-        const deletedBox = document.createElement("div");
-        deletedBox.className = "tweet deleted";
-        deletedBox.innerHTML = `<i style="color:gray;">This wint is unavailable</i>`;
-        bookmarkList.appendChild(deletedBox);
-      }
-    }
-  });
-}
