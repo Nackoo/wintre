@@ -1,6 +1,7 @@
 import { db, collection, query, where, getDocs, orderBy, limit, auth, getDoc, doc, setDoc, deleteDoc, startAfter, updateDoc, increment } from "./firebase.js";
 import { renderTweet } from './index.js';
 import { sendFollowNotification } from "./notification.js";
+import { homesvg, homefilled, usersvg, userfilled } from "./nonsense.js";
 
 const searchBtn = document.querySelector('.smallbar img[src="/image/search.svg"]');
 const userOverlay = document.getElementById("userOverlay");
@@ -26,13 +27,15 @@ let totalLoaded = 0;
 
 searchBtn.addEventListener("click", () => {
   userOverlay.classList.remove("hidden");
-  searchInput.value = "";
-  usersView.innerHTML = "";
-  currentSearchTerm = "";
-  lastUserDoc = null;
-  totalLoaded = 0;
-  fetchUsers(true);
+  document.querySelectorAll(".tab1").forEach(t => t.classList.remove("active"));
+  document.querySelectorAll(".tab-content").forEach(c => c.classList.add("hidden"));
+  const tweetsTab = document.querySelector('.tab1[data-target="tweetsView"]');
+  tweetsTab.classList.add("active");
+  tweetsView.classList.remove("hidden");
 });
+
+let a = false;
+let b = false;
 
 document.querySelectorAll(".tab1").forEach(tab1 => {
   tab1.addEventListener("click", () => {
@@ -41,15 +44,33 @@ document.querySelectorAll(".tab1").forEach(tab1 => {
     tab1.classList.add("active");
     document.getElementById(tab1.dataset.target).classList.remove("hidden");
 
+    const term = searchInput.value.trim().toLowerCase();
     const tabTarget = tab1.dataset.target;
+    currentSearchTerm = term;
+
     if (tabTarget === "tagsView") {
-      tagsView.innerHTML = "";
-      fetchTags("");
-    } else if (tabTarget === "usersView") {
-      usersView.innerHTML = "";
-      lastUserDoc = null;
-      fetchUsers(true);
-    }
+      if (!a) {
+        fetchTags("");
+        a = true;
+      }
+      if (term) searchInput.dispatchEvent(new Event("input"));
+    } 
+    else if (tabTarget === "usersView") {
+      if (!b) {
+        fetchUsers(true);
+        b = true;
+      }
+      if (term) searchInput.dispatchEvent(new Event("input"));
+    } 
+    else if (tabTarget === "tweetsView") {
+  resetTweetSearch();
+  if (term.length >= 3) {
+    tweetsView.innerHTML = "";
+    searchTweets(term);
+  } else if (term.length === 0) {
+    tweetsView.innerHTML = `<p style="color:gray;font-size:15px;">enter at least 3 characters to search tweets</p>`;
+  }
+}
   });
 });
 
@@ -64,8 +85,8 @@ searchInput.addEventListener("input", () => {
     const term = searchInput.value.trim().toLowerCase();
 
     if (activeTab === "tweetsView") {
-      resetTweetSearch();
       if (currentSearchTerm.length >= 3) {
+        tweetsView.innerHTML = "";
         searchTweets(currentSearchTerm);
       } else {
         tweetsView.innerHTML = `<p style="color:gray;font-size:15px;">enter at least 3 characters to search tweets</p>`;
@@ -359,6 +380,7 @@ async function openUserSubProfile(uid) {
   if (!docSnap.exists()) return;
 
   document.getElementById("user-name").dataset.uid = uid;
+  document.getElementById("copyUserLinkBtn").dataset.uid = uid;
 
   const d = docSnap.data();
   document.getElementById("who").textContent = d.displayName || "Unnamed";
@@ -385,10 +407,9 @@ async function openUserSubProfile(uid) {
   const currentUserId = auth.currentUser.uid;
 
   if (uid === currentUserId) {
-    followBtn.style.display = "none";
-  }
-
-  followBtn.style.display = "inline-block";
+  followBtn.style.display = "none"; 
+} else {
+  followBtn.style.display = "inline-block"; 
 
   const myFollowingRef = doc(db, "users", currentUserId, "following", uid);
   const theirFollowersRef = doc(db, "users", uid, "followers", currentUserId);
@@ -429,6 +450,7 @@ async function openUserSubProfile(uid) {
       followBtn.textContent = "Unfollow";
       sendFollowNotification(uid);
     }
+  }
 
   };
 
@@ -741,3 +763,27 @@ async function loadUserMentionedTweets(uid) {
     mentionedLastVisibleDoc = snap.docs[snap.docs.length - 1];
   }
 }
+
+document.body.addEventListener("click", e => {
+  const copyBtn = e.target.closest(".copy-link-btn");
+  if (copyBtn) {
+    const uid = copyBtn.dataset.uid;
+    const link = `${window.location.origin}/user/${uid}`;
+    navigator.clipboard.writeText(link).then(() => {
+      alert("Profile link copied!");
+    });
+  }
+});
+
+window.addEventListener("DOMContentLoaded", () => {
+  const path = window.location.pathname;
+  const userMatch = path.match(/^\/user\/([^/]+)$/);
+  if (userMatch) {
+    const uid = userMatch[1];
+    openUserSubProfile(uid);
+    usersvg.classList.add('hidden');
+    userfilled.classList.remove('hidden');
+    homefilled.classList.add('hidden');
+    homesvg.classList.remove('hidden');
+  }
+});
