@@ -203,7 +203,7 @@ saveButton.addEventListener("click", async () => {
     description: newDescription,
     banner: newBanner,
     photoURL: newAvatar,
-  });
+  }, { merge: true });
 
   profileSubOverlay.classList.add("hidden");
   myName.textContent = newName;
@@ -231,6 +231,7 @@ document.querySelector('.smallbar img[src="/image/user.svg"]').addEventListener(
   if (!uid) return;
 
   document.getElementById("my-name").dataset.uid = uid;
+  document.getElementById("copyMyLinkBtn").dataset.uid = uid;
 
   document.getElementById("profileOverlay").classList.remove("hidden");
 
@@ -284,7 +285,7 @@ document.querySelector('.smallbar img[src="/image/user.svg"]').addEventListener(
     const formatted = `${date.getDate()} ${date.toLocaleString("default", { month: "long" })} ${date.getFullYear()}`;
     document.getElementById("my-creation").textContent = `joined ${formatted}`;
   }
-  listenUserTweets(uid);
+  loadTweets(uid);
 });
 
 async function loadTweets(uid) {
@@ -319,12 +320,9 @@ async function loadTweets(uid) {
   const snap = await getDocs(q);
 
   if (snap.empty && userLoadedCount === 0) {
-    list.innerHTML = `<p id="start1" style="color:grey;text-align:center">this user has no wint</p>`;
+    list.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="/image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
     loadMore.style.display = "none";
     return;
-  } else {
-    const startEl = document.getElementById("start1");
-    if (startEl) startEl.style.display = "none";
   }
 
   for (const docSnap of snap.docs) {
@@ -378,10 +376,10 @@ document.querySelectorAll(".tab2").forEach(tab => {
     const uid = document.getElementById("my-name").dataset.uid;
 
     if (targetId === "youList") {
-      listenUserTweets(uid);
+      loadTweets(uid);
     } 
     else if (targetId === "mentionedList") {
-      listenMentionedTweets(uid); 
+      loadUserMentionedTweets(uid); 
     }
   });
 });
@@ -402,9 +400,6 @@ async function loadUserMentionedTweets(uid) {
     usermentionedList.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="/image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
     mloadMore.style.display = "none";
     return;
-  } else {
-    const startEl = document.getElementById("start1");
-    if (startEl) startEl.style.display = "none";
   }
 
   for (const mentionDoc of snap.docs) {
@@ -431,53 +426,4 @@ async function loadUserMentionedTweets(uid) {
     mentionedLastVisibleDoc = snap.docs[snap.docs.length - 1];
   }
 
-}
-
-function listenUserTweets(uid) {
-  if (unsubscribeYouList) unsubscribeYouList();
-
-  const q = query(
-    collection(db, "tweets"),
-    where("uid", "==", uid),
-    orderBy("createdAt", "desc")
-  );
-
-  unsubscribeYouList = onSnapshot(q, (snap) => {
-    list.innerHTML = ""; 
-
-    if (snap.empty) {
-      list.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="/image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
-      return;
-    }
-
-    snap.docs.forEach(async (docSnap) => {
-      await renderTweet(docSnap.data(), docSnap.id, { uid }, "append", list);
-    });
-  });
-}
-
-function listenMentionedTweets(uid) {
-  if (unsubscribeMentioned) unsubscribeMentioned();
-
-  const q = query(
-    collection(db, "users", uid, "mentioned"),
-    orderBy("mentionedAt", "desc")
-  );
-
-  unsubscribeMentioned = onSnapshot(q, async (snap) => {
-    usermentionedList.innerHTML = "";
-
-    if (snap.empty) {
-      usermentionedList.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="/image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
-      return;
-    }
-
-    for (const mentionDoc of snap.docs) {
-      const tweetId = mentionDoc.id;
-      const tweetDoc = await getDoc(doc(db, "tweets", tweetId));
-      if (tweetDoc.exists()) {
-        await renderTweet(tweetDoc.data(), tweetId, { uid }, "append", usermentionedList);
-      }
-    }
-  });
 }
