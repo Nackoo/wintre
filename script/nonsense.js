@@ -125,6 +125,13 @@ function hidenotif() {
 function closeUser() {
   usersub?.classList.add('hidden');
   user.classList.remove('hidden');
+  document.querySelectorAll(".tab1").forEach(t => t.classList.remove("active"));
+  document.querySelectorAll(".tab-content").forEach(c => c.classList.add("hidden"));
+  const tweetsTab = document.querySelector('.tab1[data-target="tweetsView"]');
+  tweetsTab.classList.add("active");
+  const tweetsView = document.getElementById("tweetsView");
+  tweetsView.classList.remove("hidden");
+  goHome();
 }
 
 window.hideprofile = hideprofile;
