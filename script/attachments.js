@@ -56,6 +56,14 @@ async function compressImageTo480(file) {
 
   return new Promise((resolve, reject) => {
     reader.onload = (e) => {
+      const originalBase64 = e.target.result;
+
+      const getSize = (b64) => Math.ceil((b64.length * 3) / 4);
+
+      if (getSize(originalBase64) <= 1024 * 1024) {
+        return resolve(originalBase64);
+      }
+
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement("canvas");
@@ -84,8 +92,6 @@ async function compressImageTo480(file) {
         let quality = 0.7; 
         let base64 = canvas.toDataURL("image/jpeg", quality);
 
-        const getSize = (b64) => Math.ceil((b64.length * 3) / 4);
-
         while (getSize(base64) > 1024 * 1024 && quality > 0.1) {
           quality -= 0.1;
           base64 = canvas.toDataURL("image/jpeg", quality);
@@ -104,7 +110,7 @@ async function compressImageTo480(file) {
       };
 
       img.onerror = reject;
-      img.src = e.target.result;
+      img.src = originalBase64;
     };
 
     reader.onerror = reject;
@@ -144,4 +150,85 @@ function readFileAsBase64(file) {
   });
 }
 
-export { uploadToSupabase, compressImageTo480, showImagePreview, readFileAsBase64 }
+function setupVideoAutoplayOnVisibility(tweetElement) {
+  const videos = tweetElement.querySelectorAll("video");
+  const visibilityMap = new Map();
+
+  function isCoveredByOverlay(video) {
+    const overlays = document.querySelectorAll('.overlay, .useroverlay, .mediaOverlay');
+    if (overlays.length === 0) return false;
+
+    const videoRect = video.getBoundingClientRect();
+
+    for (const overlay of overlays) {
+      const overlayRect = overlay.getBoundingClientRect();
+
+      if (
+        overlayRect.width > 0 &&
+        overlayRect.height > 0 &&
+        !(overlayRect.right < videoRect.left || overlayRect.left > videoRect.right ||
+          overlayRect.bottom < videoRect.top || overlayRect.top > videoRect.bottom)
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function updateVideoState(video) {
+    const isVisible = visibilityMap.get(video) || false;
+    const covered = isCoveredByOverlay(video);
+
+    if (isVisible && !covered) {
+      video.play().catch(() => {});
+      video._isVisible = true;
+    } else {
+      video.pause();
+      video._isVisible = false;
+    }
+  }
+
+  const observer1 = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      visibilityMap.set(entry.target, entry.isIntersecting);
+      updateVideoState(entry.target);
+    });
+  }, {
+    threshold: 0.65
+  });
+
+  videos.forEach(video => {
+    if (!video.hasAttribute("muted")) {
+      video.muted = true;
+    }
+
+    video.addEventListener("ended", () => {
+      if (video._isVisible) {
+        video.play().catch(() => {});
+      }
+    });
+
+    observer1.observe(video);
+  });
+
+  function onScrollOrResize() {
+    videos.forEach(video => updateVideoState(video));
+  }
+  window.addEventListener('scroll', onScrollOrResize, {
+    passive: true
+  });
+  window.addEventListener('resize', onScrollOrResize);
+
+  const overlaysParent = document.body;
+  const mutationObserver = new MutationObserver(() => {
+    videos.forEach(video => updateVideoState(video));
+  });
+
+  mutationObserver.observe(overlaysParent, {
+    attributes: true,
+    childList: true,
+    subtree: true
+  });
+}
+
+export { uploadToSupabase, compressImageTo480, showImagePreview, readFileAsBase64, setupVideoAutoplayOnVisibility }
