@@ -18,18 +18,16 @@ service cloud.firestore {
       allow read: if true;
       allow create, update: if request.auth != null;
 
-    match /tweets/{tweetId} {
-      allow read: if true;
-      allow create, update: if request.auth != null;
-      allow delete: if request.auth != null;
+      match /tweets/{tweetId} {
+        allow read: if true;
+        allow create, update: if request.auth != null;
+        allow delete: if request.auth != null;
       }
     }
 
     // Notifications
     match /users/{userId}/notifications/{notificationId} {
-      allow read, update, delete: if request.auth != null && request.auth.uid == userId;
-      allow create: if request.auth != null && request.auth.uid != userId;
-      allow delete: if request.auth != null;
+      allow create, read, update, delete: if request.auth != null;
     }
 
     // Users and subcollections
