@@ -81,7 +81,7 @@ onAuthStateChanged(auth, async (user) => {
         updateData.createdAt = new Date();
       }
       if (!data.photoURL) {
-        updateData.photoURL = '/image/default-avatar.jpg'; 
+        updateData.photoURL = '/image/default-avatar.jpg';
       }
       if (!("posts" in data)) {
         updateData.posts = 0;
@@ -390,6 +390,36 @@ function setupSoundToggle(tweetElement) {
   });
 }
 
+async function getSupabaseVideo(fileUrl, videoId) {
+  try {
+    const res = await fetch(fileUrl);
+    if (!res.ok) throw new Error("Failed to fetch video");
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+
+    const videoEl = document.getElementById(videoId);
+    if (videoEl) {
+
+      videoEl.innerHTML = "";
+
+      const source = document.createElement("source");
+      source.src = objectUrl;
+      source.type = blob.type || "video/mp4";
+      videoEl.appendChild(source);
+
+      videoEl.load();
+    }
+  } catch (err) {
+    console.error("Failed to load Supabase video:", err);
+
+    const videoEl = document.getElementById(videoId);
+    if (videoEl) {
+      videoEl.innerHTML = `<source src="${fileUrl}" type="video/mp4">`;
+      videoEl.load();
+    }
+  }
+}
+
 export async function renderTweet(t, tweetId, user, action = "prepend", container = document.getElementById("timeline")) {
 
   const likeRef = doc(db, "tweets", tweetId, "likes", user.uid);
@@ -469,43 +499,17 @@ export async function renderTweet(t, tweetId, user, action = "prepend", containe
     }
   } else if (t.media && t.mediaType === "video") {
     if (containsSpoiler) {
-      mediaHTML = `
-              <div class="attachment spoiler-media" style="position: relative; max-width: 100%; max-height: 300px;" onclick="this.classList.add('revealed')">
-                <div class="spoiler-overlay">
-                  <div class="spoilertxt">spoiler</div>
-                </div>
-                <video style="max-width: 100%; max-height: 300px; border-radius: 10px;" muted controls>
-                  <source src="${t.media}" type="video/mp4" />
-                  Your browser does not support the video tag.
-                </video>
-                <button class="sound-toggle-btn" aria-label="Toggle sound" style="
-        position: absolute;
-        top: 8px;
-        right: 8px;
-        background: rgba(0,0,0,0.5);
-        border: none;
-        border-radius: 50%;
-        width: 32px;
-        height: 32px;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        cursor: pointer;
-        color: white;
-      ">
-                  <img src='/image/volume-muted.svg'>
-                </button>
-              </div>`;
+      const vidId = t.id ? `vid-${t.id}` : `vid-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
 
-    } else {
       mediaHTML = `
-              <div class="attachment" style="position: relative; max-width: 100%; max-height: 300px;">
-                <video muted controls style="max-width: 100%; max-height: 300px; border-radius: 10px;">
-                  <source src="${t.media}" type="video/mp4" />
-                  Your browser does not support the video tag.
-                </video>
-                <button class="sound-toggle-btn" aria-label="Toggle sound" style="
-        position: absolute;
+  <div class="attachment spoiler-media" style="position: relative; max-width: 100%; max-height: 300px;" onclick="this.classList.add('revealed')">
+    <div class="spoiler-overlay">
+      <div class="spoilertxt">spoiler</div>
+    </div>
+    <video id="${vidId}" muted controls style="max-width: 100%; max-height: 300px; border-radius: 10px;">
+      Your browser does not support the video tag.
+    </video>
+    <button class="sound-toggle-btn" aria-label="Toggle sound" style="        position: absolute;
         top: 8px;
         right: 8px;
         background: rgba(0,0,0,0.5);
@@ -517,11 +521,36 @@ export async function renderTweet(t, tweetId, user, action = "prepend", containe
         justify-content: center;
         align-items: center;
         cursor: pointer;
-        color: white;
-      ">
-                  <img src='/image/volume-muted.svg'>
-                </button>
-              </div>`;
+        color: white;">
+      <img src='/image/volume-muted.svg'>
+    </button>
+  </div>`;
+      getSupabaseVideo(t.media, vidId);
+    } else {
+      const vidId = t.id ? `vid-${t.id}` : `vid-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+
+      mediaHTML = `
+  <div class="attachment" style="position: relative; max-width: 100%; max-height: 300px;">
+    <video id="${vidId}" muted controls style="max-width: 100%; max-height: 300px; border-radius: 10px;">
+      Your browser does not support the video tag.
+    </video>
+    <button class="sound-toggle-btn" aria-label="Toggle sound" style="position: absolute;
+        top: 8px;
+        right: 8px;
+        background: rgba(0,0,0,0.5);
+        border: none;
+        border-radius: 50%;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        cursor: pointer;
+        color: white;">
+      <img src='/image/volume-muted.svg'>
+    </button>
+  </div>`;
+      getSupabaseVideo(t.media, vidId);
     }
   }
 
@@ -716,8 +745,8 @@ async function deleteSubcollectionDocs(tweetId, subcollectionName) {
 document.body.addEventListener("click", async (e) => {
   const menubtn = e.target.closest(".menubtn");
   if (menubtn) {
-    const tweet = menubtn.closest(".tweet"); 
-    const menu = tweet.querySelector(".tweet-menu"); 
+    const tweet = menubtn.closest(".tweet");
+    const menu = tweet.querySelector(".tweet-menu");
     document.querySelectorAll(".tweet-menu").forEach(m => m.classList.add("hidden"));
     if (menu) {
       menu.classList.toggle("hidden");
@@ -966,22 +995,19 @@ document.body.addEventListener("click", async (e) => {
 
     if (mediaSrc) {
       if (isVideo) {
+        const vidId = `vid-${tweetId}`;
         mediaHTML = containsSpoiler ?
           `
-                    <div class="attachment spoiler-media" onclick="this.classList.add('revealed')">
-                      <div class="spoiler-overlay">
-                        <div class="spoilertxt">spoiler</div>
-                      </div>
-                      <video style="max-width: 100%; max-height: 300px;" muted controls>
-                        <source src="${mediaSrc}">
-                      </video>
-                    </div>` :
+      <div class="attachment spoiler-media" onclick="this.classList.add('revealed')">
+        <div class="spoiler-overlay">
+          <div class="spoilertxt">spoiler</div>
+        </div>
+        <video id="${vidId}" style="max-width: 100%; max-height: 300px;" muted controls></video>
+      </div>` :
           `
-                    <div class="attachment">
-                      <video controls style="max-width: 100%; max-height: 300px;">
-                        <source src="${mediaSrc}">
-                      </video>
-                    </div>`;
+      <div class="attachment">
+        <video id="${vidId}" controls style="max-width: 100%; max-height: 300px;"></video>
+      </div>`;
       } else {
         mediaHTML = containsSpoiler ?
           `
@@ -997,12 +1023,14 @@ document.body.addEventListener("click", async (e) => {
                     </div>`;
       }
     }
-
     document.getElementById("commentTweet").innerHTML = `
-                    <p>${linkify(tweetText)}</p>
-                    ${mediaHTML}
-                    `;
+  <p>${linkify(tweetText)}</p>
+  ${mediaHTML}
+`;
 
+    if (isVideo && mediaSrc) {
+      getSupabaseVideo(mediaSrc, `vid-${tweetId}`);
+    }
     applyReadMoreLogic(commentTweet);
 
     document.getElementById("sendComment").onclick = async () => {
@@ -1105,15 +1133,15 @@ document.body.addEventListener("click", (e) => {
     document.querySelectorAll(".tweet-menu").forEach(m => m.classList.add("hidden"));
   }
   const viewBtn = e.target.closest(".viewbtn");
-if (viewBtn) {
-  document.getElementById("viewOverlay").classList.remove("hidden");
-}
+  if (viewBtn) {
+    document.getElementById("viewOverlay").classList.remove("hidden");
+  }
 
-const closeViewBtn = e.target.closest("#closeViewOverlay");
-const closeview = e.target.closest("#closeviewover")
-if (closeViewBtn || closeview || e.target.id === "viewOverlay") {
-  document.getElementById("viewOverlay").classList.add("hidden");
-}
+  const closeViewBtn = e.target.closest("#closeViewOverlay");
+  const closeview = e.target.closest("#closeviewover")
+  if (closeViewBtn || closeview || e.target.id === "viewOverlay") {
+    document.getElementById("viewOverlay").classList.add("hidden");
+  }
 });
 
 document.getElementById("closeComment").onclick = () => {
@@ -1844,16 +1872,18 @@ document.body.addEventListener("click", async (e) => {
   const retweetCount = retweetSnap.data().count;
 
   let retweetMediaHTML = "";
+  let vidId = null;
+
   if (t.media && t.mediaType === "image") {
     retweetMediaHTML = `<div class="attachment"><img src="${t.media}" style="max-width: 100%; max-height: 300px" alt="tweet image" /></div>`;
   } else if (t.media && t.mediaType === "video") {
+    vidId = t.id ? `vid-${t.id}` : `vid-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
     retweetMediaHTML = `
-                      <div class="attachment">
-                        <video controls style="max-width: 100%; max-height: 300px">
-                          <source src="${t.media}" type="video/mp4" />
-                        </video>
-                      </div>`;
+    <div class="attachment">
+      <video id="${vidId}" controls style="max-width: 100%; max-height: 300px"></video>
+    </div>`;
   }
+
 
   let displayName = t.displayName;
   let avatar = t.photoURL;
@@ -1870,16 +1900,21 @@ document.body.addEventListener("click", async (e) => {
   }
 
   document.getElementById("retweetOriginal").innerHTML = `
-                      <div class="tweet retweet">
-                        <div class="flex" style="gap:10px">
-                          <img class="avatar" src="${avatar}" onerror="this.src='/image/default-avatar.jpg'" width="30">
-                          <strong class="user-link" data-uid="${t.uid}" style="cursor:pointer;font-size:17px">${escapeHTML(displayName)}</strong>
-                          <span style="color:grey;font-size:13px">${dateStr}</span>
-                        </div>
-                        <p>${linkify(t.text)}</p>
-                        ${retweetMediaHTML}
-                      </div>
-                      `;
+  <div class="tweet retweet">
+    <div class="flex" style="gap:10px">
+      <img class="avatar" src="${avatar}" onerror="this.src='/image/default-avatar.jpg'" width="30">
+      <strong class="user-link" data-uid="${t.uid}" style="cursor:pointer;font-size:17px">${escapeHTML(displayName)}</strong>
+      <span style="color:grey;font-size:13px">${dateStr}</span>
+    </div>
+    <p>${linkify(t.text)}</p>
+    ${retweetMediaHTML}
+  </div>
+`;
+
+  if (t.media && t.mediaType === "video") {
+    getSupabaseVideo(t.media, vidId);
+  }
+
 
   document.getElementById("retweetOverlay").classList.remove("hidden");
   applyReadMoreLogic(document.getElementById("retweetOriginal"));
@@ -2099,17 +2134,29 @@ document.body.addEventListener("click", async (e) => {
       prompt("Copy this link:", url);
     }
   }
+
   const downloadBtn = e.target.closest(".download-btn");
   if (downloadBtn) {
     const tweetId = downloadBtn.dataset.id;
     const tweetEl = document.querySelector(`#tweet-${tweetId}`);
-    const mediaEl = tweetEl.querySelector(".tweet-media img, .tweet-media video source");
+
+    const mediaEl = tweetEl.querySelector(".tweet-media img, .tweet-media video, .tweet-media video source");
 
     if (!mediaEl) return;
-    const url = mediaEl.src || mediaEl.getAttribute("src");
-    const filename = getSafeFilename(tweetId, url);
 
+    let url = "";
+    if (mediaEl.tagName === "VIDEO") {
+      const sourceEl = mediaEl.querySelector("source");
+      url = sourceEl ? sourceEl.src || sourceEl.getAttribute("src") : "";
+    } else {
+      url = mediaEl.src || mediaEl.getAttribute("src");
+    }
+
+    if (!url) return;
+
+    const filename = getSafeFilename(tweetId, url);
     await downloadFile(url, filename);
+
   }
 });
 
