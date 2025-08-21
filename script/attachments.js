@@ -348,4 +348,72 @@ function setupVideoAutoplayOnVisibility(tweetElement) {
   });
 }
 
+function checkOverlayState() {
+  const overlays = document.querySelectorAll(".overlay, .useroverlay, .mediaOverlay");
+
+  const anyVisible = Array.from(overlays).some(el => !el.classList.contains("hidden"));
+
+  if (anyVisible) {
+    document.body.classList.add("no-scroll");
+  } else {
+    document.body.classList.remove("no-scroll");
+  }
+}
+
+const observer = new MutationObserver(checkOverlayState);
+
+document.querySelectorAll(".overlay, .useroverlay, .mediaOverlay").forEach(el => {
+  observer.observe(el, {
+    attributes: true,
+    attributeFilter: ['class']
+  });
+});
+
+const overlay = document.querySelector(".mediaOverlay");
+const overlayContent = document.getElementById("overlayContent");
+
+overlay.addEventListener("click", (e) => {
+  if (e.target === overlay) {
+    overlay.classList.add("hidden");
+    overlayContent.innerHTML = "";
+  }
+});
+
+document.addEventListener("click", (e) => {
+  if (e.target.id === "closeOverlay") {
+    overlay.classList.add("hidden");
+    overlayContent.innerHTML = "";
+  }
+});
+
+document.body.addEventListener("click", async (e) => {
+  if (e.target.tagName === "VIDEO" || e.target.closest("video")) {
+    return;
+  }
+
+  const container = e.target.closest(".attachment, .rt-attachment, .attachment1, .attachment2");
+  if (!container) return;
+
+  let img;
+
+  if (
+    container.classList.contains("attachment1") ||
+    container.classList.contains("attachment2")
+  ) {
+    img = container;
+  } else {
+    img = [...container.querySelectorAll("img")].find(el => {
+      const src = (el.currentSrc || el.src || "");
+      const cleaned = src.split("#")[0].split("?")[0].toLowerCase();
+      return !cleaned.endsWith("/image/volume.svg") &&
+        !cleaned.endsWith("/image/volume-muted.svg");
+    });
+  }
+
+  if (img) {
+    overlay.classList.remove("hidden");
+    overlayContent.innerHTML = `<img src="${img.src}" />`;
+  }
+});
+
 export { uploadToSupabase, compressImageTo480, showImagePreview, readFileAsBase64, setupVideoAutoplayOnVisibility }
