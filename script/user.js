@@ -1,7 +1,8 @@
 import { db, collection, query, where, getDocs, orderBy, limit, auth, getDoc, doc, setDoc, deleteDoc, startAfter, updateDoc, increment } from "./firebase.js";
-import { renderTweet, tokenize } from './index.js';
+import { renderTweet } from './index.js';
 import { sendFollowNotification } from "./notification.js";
 import { homesvg, homefilled, searchsvg, searchfilled } from "./nonsense.js";
+import { tokenize } from "./texts.js";
 
 const searchBtn = document.querySelector('.smallbar img[src="/image/search.svg"]');
 const userOverlay = document.getElementById("userOverlay");
