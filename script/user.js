@@ -1,7 +1,7 @@
 import { db, collection, query, where, getDocs, orderBy, limit, auth, getDoc, doc, setDoc, deleteDoc, startAfter, updateDoc, increment } from "./firebase.js";
 import { renderTweet } from './index.js';
 import { sendFollowNotification } from "./notification.js";
-import { homesvg, homefilled, usersvg, userfilled } from "./nonsense.js";
+import { homesvg, homefilled, searchsvg, searchfilled } from "./nonsense.js";
 
 const searchBtn = document.querySelector('.smallbar img[src="/image/search.svg"]');
 const userOverlay = document.getElementById("userOverlay");
@@ -781,8 +781,8 @@ window.addEventListener("DOMContentLoaded", () => {
   if (userMatch) {
     const uid = userMatch[1];
     openUserSubProfile(uid);
-    usersvg.classList.add('hidden');
-    userfilled.classList.remove('hidden');
+    searchsvg.classList.add('hidden');
+    searchfilled.classList.remove('hidden');
     homefilled.classList.add('hidden');
     homesvg.classList.remove('hidden');
   }
