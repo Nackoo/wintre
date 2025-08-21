@@ -1,5 +1,5 @@
 import { db, collection, query, where, getDocs, orderBy, limit, auth, getDoc, doc, setDoc, deleteDoc, startAfter, updateDoc, increment } from "./firebase.js";
-import { renderTweet } from './index.js';
+import { renderTweet, tokenize } from './index.js';
 import { sendFollowNotification } from "./notification.js";
 import { homesvg, homefilled, searchsvg, searchfilled } from "./nonsense.js";
 
@@ -54,42 +54,50 @@ document.querySelectorAll(".tab1").forEach(tab1 => {
         a = true;
       }
       if (term) searchInput.dispatchEvent(new Event("input"));
-    } 
-    else if (tabTarget === "usersView") {
+    } else if (tabTarget === "usersView") {
       if (!b) {
         fetchUsers(true);
         b = true;
       }
       if (term) searchInput.dispatchEvent(new Event("input"));
-    } 
-    else if (tabTarget === "tweetsView") {
-  resetTweetSearch();
-  if (term.length >= 3) {
-    tweetsView.innerHTML = "";
-    searchTweets(term);
-  } else if (term.length === 0) {
-    tweetsView.innerHTML = `<p style="color:gray;font-size:15px;">enter at least 3 characters to search tweets</p>`;
-  }
-}
+    } else if (tabTarget === "tweetsView") {
+      resetTweetSearch();
+      if (term.length >= 3) {
+        tweetsView.innerHTML = "";
+        searchTweets(term);
+      } else if (term.length === 0) {
+        tweetsView.innerHTML = `<p style="color:gray;font-size:15px;">enter at least 3 characters to search Wynts</p>`;
+      }
+    }
   });
 });
 
 let searchTimeout;
 
+const MIN_LEN = 3;
+
 searchInput.addEventListener("input", () => {
   clearTimeout(searchTimeout);
-
-  searchTimeout = setTimeout(() => {
-    currentSearchTerm = searchInput.value.trim().toLowerCase();
+  searchTimeout = setTimeout(async () => {
+    const term = searchInput.value.trim();
     const activeTab = document.querySelector(".tab1.active")?.dataset.target;
-    const term = searchInput.value.trim().toLowerCase();
 
     if (activeTab === "tweetsView") {
-      if (currentSearchTerm.length >= 3) {
+      if (term.length >= MIN_LEN) {
+        const tweets = await searchTweets(term, true);
         tweetsView.innerHTML = "";
-        searchTweets(currentSearchTerm);
+
+        if (tweets.length === 0) {
+          tweetsView.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="/image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
+          return;
+        }
+
+        tweets.forEach(t => {
+          renderTweet(t, t.id, auth.currentUser, "append", tweetsView);
+        });
+
       } else {
-        tweetsView.innerHTML = `<p style="color:gray;font-size:15px;">enter at least 3 characters to search tweets</p>`;
+        tweetsView.innerHTML = `<p style="color:gray;font-size:15px;">enter at least ${MIN_LEN} characters to search Wynts</p>`;
       }
     } else if (activeTab === "usersView") {
       usersView.innerHTML = "";
@@ -99,7 +107,7 @@ searchInput.addEventListener("input", () => {
       tagsView.innerHTML = "";
       fetchTags(term);
     }
-  }, 1000);
+  }, 400);
 });
 
 function resetTweetSearch() {
@@ -111,29 +119,48 @@ function resetTweetSearch() {
   tweetsView.innerHTML = "";
 }
 
-async function searchTweets(term) {
-  if (tweetSearchLoading || tweetSearchNoMore) return;
-  tweetSearchLoading = true;
-  const q = query(
-    collection(db, "tweets"),
+const TWEETS_PAGE = 10;
+let lastTweetDoc = null;
+
+async function searchTweets(term, reset = true) {
+  const words = tokenize(term);
+  if (words.length === 0) return [];
+
+  const searchList = words.slice(0, 10);
+
+  if (reset) lastTweetDoc = null;
+
+  const base = [
+    where("searchTokens", "array-contains-any", searchList),
     orderBy("createdAt", "desc"),
-    limit(100)
-  );
+    limit(TWEETS_PAGE),
+  ];
+
+  const q = lastTweetDoc ?
+    query(collection(db, "tweets"), ...base, startAfter(lastTweetDoc)) :
+    query(collection(db, "tweets"), ...base);
 
   const snap = await getDocs(q);
-  tweetSearchResults = snap.docs.filter(doc => {
-    const d = doc.data();
-    return d.text?.toLowerCase().includes(term);
+
+  const mustHaveAll = true;
+  const results = [];
+  snap.forEach(docSnap => {
+    const d = docSnap.data();
+    if (
+      !mustHaveAll ||
+      words.every(w => (d.searchTokens || []).includes(w))
+    ) {
+      results.push({
+        id: docSnap.id,
+        ...d
+      });
+    }
   });
 
-  if (tweetSearchResults.length === 0) {
-    tweetsView.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="/image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
-    tweetSearchNoMore = true;
-    return;
+  if (!snap.empty) {
+    lastTweetDoc = snap.docs[snap.docs.length - 1];
   }
-
-  renderMoreSearchedTweets();
-  tweetSearchLoading = false;
+  return results;
 }
 
 async function renderMoreSearchedTweets() {
@@ -217,9 +244,10 @@ async function loadTweets(uid) {
   }
 }
 
-loadMore.addEventListener("click", () => {
-  const uid = document.getElementById("user-name").dataset.uid;
-  loadTweets(uid);
+loadMore.addEventListener("click", async () => {
+  const term = searchInput.value.trim();
+  const more = await searchTweets(term, false);
+  appendTweetList(more);
 });
 
 const mloadMore = document.getElementById("mLoadMore");
@@ -234,8 +262,8 @@ async function fetchUsers(reset = false) {
   isFetching = true;
 
   if (reset) {
-    totalLoaded = 0;  
-    usersView.innerHTML = ""; 
+    totalLoaded = 0;
+    usersView.innerHTML = "";
   }
 
   const selfUID = auth.currentUser?.uid;
@@ -252,11 +280,11 @@ async function fetchUsers(reset = false) {
       data.displayName?.toLowerCase().includes(currentSearchTerm);
   });
 
-if (filtered.length === 0 && totalLoaded === 0) {
-  usersView.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="/image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
-  isFetching = false;
-  return;
-}
+  if (filtered.length === 0 && totalLoaded === 0) {
+    usersView.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="/image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
+    isFetching = false;
+    return;
+  }
 
   for (const docSnap of filtered) {
     const data = docSnap.data();
@@ -407,50 +435,50 @@ async function openUserSubProfile(uid) {
   const currentUserId = auth.currentUser.uid;
 
   if (uid === currentUserId) {
-  followBtn.style.display = "none"; 
-} else {
-  followBtn.style.display = "inline-block"; 
+    followBtn.style.display = "none";
+  } else {
+    followBtn.style.display = "inline-block";
 
-  const myFollowingRef = doc(db, "users", currentUserId, "following", uid);
-  const theirFollowersRef = doc(db, "users", uid, "followers", currentUserId);
+    const myFollowingRef = doc(db, "users", currentUserId, "following", uid);
+    const theirFollowersRef = doc(db, "users", uid, "followers", currentUserId);
 
-  const snap = await getDoc(myFollowingRef);
-  followBtn.textContent = snap.exists() ? "Unfollow" : "Follow";
+    const snap = await getDoc(myFollowingRef);
+    followBtn.textContent = snap.exists() ? "Unfollow" : "Follow";
 
-  followBtn.onclick = async () => {
-    const currentlyFollowing = (await getDoc(myFollowingRef)).exists();
+    followBtn.onclick = async () => {
+      const currentlyFollowing = (await getDoc(myFollowingRef)).exists();
 
-    if (currentlyFollowing) {
+      if (currentlyFollowing) {
 
-      await deleteDoc(myFollowingRef);
-      await deleteDoc(theirFollowersRef);
-      await updateDoc(doc(db, "users", currentUserId), {
-        following: increment(-1)
-      });
-      await updateDoc(doc(db, "users", uid), {
-        followers: increment(-1)
-      });
+        await deleteDoc(myFollowingRef);
+        await deleteDoc(theirFollowersRef);
+        await updateDoc(doc(db, "users", currentUserId), {
+          following: increment(-1)
+        });
+        await updateDoc(doc(db, "users", uid), {
+          followers: increment(-1)
+        });
 
-      followBtn.textContent = "Follow";
-    } else {
+        followBtn.textContent = "Follow";
+      } else {
 
-      await setDoc(myFollowingRef, {
-        followedAt: new Date()
-      });
-      await setDoc(theirFollowersRef, {
-        followedAt: new Date()
-      });
-      await updateDoc(doc(db, "users", currentUserId), {
-        following: increment(1)
-      });
-      await updateDoc(doc(db, "users", uid), {
-        followers: increment(1)
-      });
+        await setDoc(myFollowingRef, {
+          followedAt: new Date()
+        });
+        await setDoc(theirFollowersRef, {
+          followedAt: new Date()
+        });
+        await updateDoc(doc(db, "users", currentUserId), {
+          following: increment(1)
+        });
+        await updateDoc(doc(db, "users", uid), {
+          followers: increment(1)
+        });
 
-      followBtn.textContent = "Unfollow";
-      sendFollowNotification(uid);
+        followBtn.textContent = "Unfollow";
+        sendFollowNotification(uid);
+      }
     }
-  }
 
   };
 
