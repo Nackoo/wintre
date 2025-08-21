@@ -128,6 +128,22 @@ function formatDate(timestamp) {
   return `${day}/${month}/${year}`;
 }
 
+export function tokenize(text) {
+  const lower = (text || "").toLowerCase();
+
+  const cleaned = lower.replace(/[^a-z0-9@#'\s]+/gi, " ");
+
+  const raw = cleaned.split(/\s+/).filter(Boolean);
+
+  const out = new Set();
+  for (const t of raw) {
+    out.add(t);
+    const noApos = t.replace(/['’]/g, "");
+    if (noApos && noApos !== t) out.add(noApos);
+  }
+  return Array.from(out);
+}
+
 document.getElementById("postBtn").addEventListener("click", async () => {
   const btn = document.getElementById("postBtn");
   btn.disabled = true;
@@ -200,6 +216,7 @@ document.getElementById("postBtn").addEventListener("click", async () => {
       mediaType,
       mediaPath,
       createdAt: new Date(),
+      searchTokens: tokenize(text),
       uid: user.uid,
       tags,
       replyPermission: permission,
