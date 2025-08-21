@@ -180,6 +180,7 @@ service cloud.firestore {
 | tweets        | `uid ↑`, `createdAt ↓`, `__name__ ↓`                 | Collection   |
 | tweets        | `likeCount ↓`, `createdAt ↑`, `__name__ ↑`           | Collection   |
 | tweets        | `likeCount ↓`, `createdAt ↓`, `__name__ ↓`           | Collection   |
+| tweets        | `searchTokens []`, `createdAt ↓`, `__name__ ↓`       | Collection   |
 
 ## supabase policies
 
