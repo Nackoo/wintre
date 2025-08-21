@@ -128,24 +128,3 @@ document.body.addEventListener("paste", (e) => {
     }
   }
 });
-
-function checkOverlayState() {
-  const overlays = document.querySelectorAll(".overlay, .useroverlay, .mediaOverlay");
-
-  const anyVisible = Array.from(overlays).some(el => !el.classList.contains("hidden"));
-
-  if (anyVisible) {
-    document.body.classList.add("no-scroll");
-  } else {
-    document.body.classList.remove("no-scroll");
-  }
-}
-
-const observer = new MutationObserver(checkOverlayState);
-
-document.querySelectorAll(".overlay, .useroverlay, .mediaOverlay").forEach(el => {
-  observer.observe(el, {
-    attributes: true,
-    attributeFilter: ['class']
-  });
-});
