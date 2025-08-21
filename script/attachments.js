@@ -1,5 +1,121 @@
 import { supabase } from "./firebase.js"
 
+let ffmpeg;
+
+async function compressVideoTo480(file) {
+  currentFFmpeg = FFmpeg.createFFmpeg({ log: true });
+  await currentFFmpeg.load();
+
+  showCompressionOverlay(true);
+
+  currentFFmpeg.setLogger(({ type, message }) => {
+    appendCompressionLog(`[${type}] ${message}`);
+  });
+
+  currentFFmpeg.FS("writeFile", "input.mp4", await FFmpeg.fetchFile(file));
+
+  await currentFFmpeg.run(
+    "-i", "input.mp4",
+    "-vf", "scale=-2:480",
+    "-c:v", "libx264",
+    "-preset", "fast",
+    "-crf", "28",
+    "-c:a", "aac",
+    "output.mp4"
+  );
+
+  const data = currentFFmpeg.FS("readFile", "output.mp4");
+
+  showCompressionOverlay(false);
+
+  return new Blob([data.buffer], { type: "video/mp4" });
+}
+
+let currentFFmpeg = null;
+
+function showCompressionOverlay(show) {
+  let overlay = document.getElementById("compression-overlay");
+
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "compression-overlay";
+    overlay.style.cssText = `
+      display:none;
+      position:fixed;
+      top:0; left:0;
+      width:100%; height:100%;
+      background:rgba(0,0,0,0.6);
+      z-index:9999;
+      display:flex;
+      justify-content:center;
+      align-items:center;
+    `;
+
+    const box = document.createElement("div");
+    box.className = "overlay-box";
+    box.style.cssText = `
+      background: var(--dark);
+      padding:20px;
+      border-radius:10px;
+      color: var(--color);
+      font-family:monospace;
+      width:80%;
+      max-width:600px;
+      max-height:70%;
+      overflow:auto;
+      box-shadow:0 0 20px rgba(0,0,0,0.7);
+    `;
+
+    const title = document.createElement("h2");
+    title.textContent = "Compressing...";
+    title.style.cssText = "margin-top:0; color:#fff; font-family:sans-serif; font-size:18px;";
+
+    const logBox = document.createElement("pre");
+    logBox.id = "compression-log";
+    logBox.style.cssText = `
+      margin-top:20px;
+      font-size:12px;
+      white-space:pre-wrap;
+      max-height:300px;
+      overflow:auto;
+      border-radius: 7px;
+      background: var(--light);
+    `;
+
+    const cancelBtn = document.createElement("div");
+    cancelBtn.innerHTML = `<div class="flex"><button style="width:100%;padding:10px;margin-left:auto;margin-top:10px;">Cancel</button></div>`;
+    cancelBtn.onclick = () => {
+      if (currentFFmpeg) {
+        try { currentFFmpeg.exit(); } catch {}
+      }
+      overlay.style.display = "none";
+      const sendBtn = document.getElementById("postBtn");
+      sendBtn.classList.remove("disabled");
+      sendBtn.disabled = false;
+      const sendRetweet = document.getElementById("sendRetweet");
+      sendRetweet.disabled = false;
+      sendRetweet.classList.remove('disabled');
+    };
+
+    box.appendChild(title);
+    box.appendChild(logBox);
+    box.appendChild(cancelBtn);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+  }
+
+  overlay.style.display = show ? "flex" : "none";
+  if (show) document.getElementById("compression-log").textContent = "";
+}
+
+function appendCompressionLog(msg) {
+  const logBox = document.getElementById("compression-log");
+  if (logBox) {
+    logBox.textContent += msg + "\n";
+    logBox.scrollTop = logBox.scrollHeight;
+  }
+}
+
 async function uploadToSupabase(file, uid) {
   if (!file) return { url: "", path: "", type: "" };
 
@@ -19,17 +135,14 @@ async function uploadToSupabase(file, uid) {
     };
   }
 
-  if (file.type.startsWith("video/")) {
-    if (file.size > 3 * 1024 * 1024) {
-      alert("Video exceeds 3MB. Please upload a smaller file.");
-      return { url: "", path: "", type: "" };
-    }
+if (file.type.startsWith("video/")) {
+  try {
+    const compressedFile = await compressVideoTo480(file);
 
     const filePath = `wints/${uid}-${Date.now()}.mp4`;
-
     const { data, error } = await supabase.storage
       .from("wints")
-      .upload(filePath, file, { upsert: true });
+      .upload(filePath, compressedFile, { upsert: true });
 
     if (error) {
       console.error("Video upload error:", error);
@@ -42,10 +155,14 @@ async function uploadToSupabase(file, uid) {
 
     return {
       url: publicUrlData.publicUrl,
-      path: filePath,               
-      type: "video"
+      path: filePath,
+      type: "video",
     };
+  } catch (err) {
+    console.error("Video compression failed:", err);
+    return { url: "", path: "", type: "" };
   }
+}
 
   alert("Unsupported file type.");
   return { url: "", path: "", type: "" };
