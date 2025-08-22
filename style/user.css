@@ -387,11 +387,6 @@
   }
 }
 
-#sendComment.disabled,
-.send-reply-btn.disabled {
-  background: grey;
-}
-
 .read-more {
   text-align: center;
 }
@@ -408,8 +403,25 @@
 }
 
 #postBtn.disabled,
-#sendRetweet.disabled {
+#sendRetweet.disabled,
+#sendComment.disabled,
+.send-reply-btn.disabled {
   background: grey !important;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+#postBtn.disabled::after,
+#sendRetweet.disabled::after,
+#sendComment.disabled::after,
+.send-reply-btn.disabled::after {
+  content: "";
+  display: inline-block;
+  width: 20px;   
+  height: 20px; 
+  background: url("/image/loader.svg") no-repeat center center;
+  background-size: contain;
 }
 
 .user-link.owner-comment {
