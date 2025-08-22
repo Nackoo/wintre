@@ -3,7 +3,7 @@ import { extractMentions } from './mention.js';
 import { handleTags } from './tags.js';
 import { sendCommentNotification, sendReplyNotification, listenForUnreadNotifications, loadNotifications, sendMentionNotification, sendRetweetNotification, sendReplyMentionNotification, sendCommentMentionNotification } from './notification.js';
 import { createClient, SUPABASE_URL, SUPABASE_ANON_KEY, MAX_FILE_BYTES, supabase } from "./firebase.js";
-import { uploadToSupabase, compressImageTo480, showImagePreview, readFileAsBase64, setupVideoAutoplayOnVisibility, getSupabaseVideo } from "./attachments.js";
+import { uploadToSupabase, compressImageTo480, readFileAsBase64, setupVideoAutoplayOnVisibility, getSupabaseVideo, getSafeFilename, downloadFile } from "./attachments.js";
 import { bookmark, profile, profilesub, user, usersub, tag, viewer, tweet, retweet, notification, comment, bookmarksvg, homesvg, usersvg, searchsvg, settingssvg, notifsvg, bookmarkfilled, homefilled, userfilled, searchfilled, settingsfilled, notiffilled } from "./nonsense.js"
 import { viewTweet } from "./tweetViewer.js";
 import { tokenize, formatDate, linkify, applyReadMoreLogic, parseMentionsToLinks, escapeHTML } from "./texts.js";
@@ -740,7 +740,6 @@ export function scoreTweet(t, currentUserFollowing) {
   // Engagement
   score += (t.likeCount || 0) * 3;
   score += (t.commentCount || 0) * 2;
-  score += (t.retweetCount || 0) * 4;
 
   // Boost followed users
   if (currentUserFollowing?.has(t.uid)) {
@@ -811,7 +810,6 @@ async function loadTweets(initial = false, direction = "down", count = 15) {
     score: t._score.toFixed(2),
     likes: t.likeCount,
     comments: t.commentCount,
-    retweets: t.retweetCount,
     createdAt: t.createdAt?.toDate().toISOString(),
     followed: currentUserFollowing?.has(t.uid) || false
   })));
@@ -998,9 +996,7 @@ document.body.addEventListener("click", async (e) => {
 
           await sendCommentNotification(tweetId, commentText);
 
-          commentInput.value = "";
-          preview.innerHTM = "";
-          fileInput.value = "";
+          clearcomment();
 
           await loadComments(tweetId);
         }
@@ -1904,98 +1900,6 @@ sendRetweet.onclick = async () => {
   }
 };
 
-document.body.addEventListener("change", (e) => {
-  if (e.target.classList.contains("comment-media-input") && e.target.closest(".reply-box")) {
-    const commentId = e.target.closest(".reply-box").id.replace("reply-box-", "");
-    showImagePreview(e.target, `replyPreview-${commentId}`);
-  }
-});
-
-document.getElementById("commentMediaInput").addEventListener("change", () => {
-  showImagePreview(document.getElementById("commentMediaInput"), "commentPreview");
-});
-
-const mediaInput = document.getElementById('mediaInput');
-const attachment = document.getElementById('tweetPreview');
-
-document.getElementById('mediaInput').addEventListener('change', function(e) {
-  const file = e.target.files[0];
-  attachment.innerHTML = '';
-  attachment.style.position = 'relative';
-  attachment.style.marginBottom = '20px';
-
-  if (file) {
-    const maxSize = 3.5 * 1024 * 1024;
-    const sizeInMB = (file.size / (1024 * 1024)).toFixed(2);
-
-    const sizeCounter = document.createElement('div');
-    sizeCounter.style.position = 'absolute';
-    sizeCounter.style.top = '10px';
-    sizeCounter.style.left = '10px';
-    sizeCounter.style.background = 'rgba(0,0,0,0.6)';
-    sizeCounter.style.color = 'white';
-    sizeCounter.style.padding = '2px 6px';
-    sizeCounter.style.borderRadius = '4px';
-    sizeCounter.style.fontSize = '12px';
-    sizeCounter.style.zIndex = '10';
-    sizeCounter.textContent = `${sizeInMB} MB`;
-
-    if (file.size > maxSize) {
-      sizeCounter.style.background = '#db1d23';
-      attachment.appendChild(sizeCounter);
-    }
-
-    attachment.appendChild(sizeCounter);
-
-    const preview = document.createElement(file.type.startsWith('video') ? 'video' : 'img');
-    preview.src = URL.createObjectURL(file);
-    preview.style.maxWidth = '100%';
-    preview.style.maxHeight = '333px';
-    preview.controls = file.type.startsWith('video');
-    attachment.appendChild(preview);
-  }
-});
-
-const mediaInput1 = document.getElementById('retweetMedia-TWEETID');
-const attachment1 = document.getElementById('retweetPreview-TWEETID');
-
-mediaInput1.addEventListener('change', function(e) {
-  const file = e.target.files[0];
-  attachment1.innerHTML = '';
-  attachment1.style.position = 'relative';
-  attachment1.style.marginBottom = '20px';
-
-  if (file) {
-    const maxSize = 3.5 * 1024 * 1024;
-    const sizeInMB = (file.size / (1024 * 1024)).toFixed(2);
-    const sizeCounter = document.createElement('div');
-    sizeCounter.style.position = 'absolute';
-    sizeCounter.style.top = '10px';
-    sizeCounter.style.left = '10px';
-    sizeCounter.style.background = 'rgba(0,0,0,0.6)';
-    sizeCounter.style.color = 'white';
-    sizeCounter.style.padding = '2px 6px';
-    sizeCounter.style.borderRadius = '4px';
-    sizeCounter.style.fontSize = '12px';
-    sizeCounter.style.zIndex = '10';
-    sizeCounter.textContent = `${sizeInMB} MB`;
-
-    if (file.size > maxSize) {
-      sizeCounter.style.background = '#db1d23';
-      attachment1.appendChild(sizeCounter);
-    }
-
-    attachment1.appendChild(sizeCounter);
-
-    const preview = document.createElement(file.type.startsWith('video') ? 'video' : 'img');
-    preview.src = URL.createObjectURL(file);
-    preview.style.maxWidth = '100%';
-    preview.style.maxHeight = '333px';
-    preview.controls = file.type.startsWith('video');
-    attachment1.appendChild(preview);
-  }
-});
-
 window.addEventListener("DOMContentLoaded", () => {
   const path = window.location.pathname;
   const match = path.match(/^\/wynt\/([a-zA-Z0-9_-]+)$/);
@@ -2042,34 +1946,3 @@ document.body.addEventListener("click", async (e) => {
 
   }
 });
-
-function getSafeFilename(tweetId, url, index = 0) {
-  const urlParts = url.split(".");
-  const ext = urlParts[urlParts.length - 1].split("?")[0];
-  return `tweet-${tweetId}-${Date.now()}-${index}.${ext}`;
-}
-
-async function downloadFile(url, filename) {
-  try {
-    const res = await fetch(url);
-    const blob = await res.blob();
-
-    let ext = "";
-    if (blob.type.includes("png")) ext = ".png";
-    else if (blob.type.includes("jpeg")) ext = ".jpg";
-    else if (blob.type.includes("gif")) ext = ".gif";
-    else if (blob.type.includes("mp4")) ext = ".mp4";
-    else if (blob.type.includes("webm")) ext = ".webm";
-
-    const objectUrl = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = objectUrl;
-    a.download = filename.endsWith(ext) ? filename : filename + ext;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(objectUrl);
-  } catch (err) {
-    console.error("Download failed:", err);
-  }
-}
