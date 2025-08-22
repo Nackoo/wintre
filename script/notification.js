@@ -289,8 +289,8 @@ export async function sendCommentNotification(tweetId, commentText) {
   const tweetSnap = await getDoc(tweetRef);
   if (!tweetSnap.exists()) return;
 
-  const creatorId = tweetSnap.data().uid;
-  if (creatorId === sender.uid) return;
+  const creatorId = tweetSnap.data().uid; 
+  if (creatorId === sender.uid) return;  
 
   const senderDoc = await getDoc(doc(db, "users", sender.uid));
   const senderName = senderDoc.exists() ? senderDoc.data().displayName : "Someone";
@@ -312,7 +312,8 @@ export async function sendCommentNotification(tweetId, commentText) {
     tweetText: tweetSnap.data().text || "",
     read: false
   });
-  await enforceNotificationLimit(targetUserId);
+
+  await enforceNotificationLimit(creatorId);
 }
 
 export async function sendReplyNotification(tweetId, commentId, replyText, originalCommenterId, replyToText) {
@@ -340,7 +341,7 @@ export async function sendReplyNotification(tweetId, commentId, replyText, origi
     commentId,
     read: false
   });
-  await enforceNotificationLimit(targetUserId);
+  await enforceNotificationLimit(originalCommenterId);
 }
 
 export async function sendMentionNotification(tweetId, mentionedUserId) {
@@ -369,7 +370,7 @@ export async function sendMentionNotification(tweetId, mentionedUserId) {
     tweetText: tweetSnap.data().text || "",
     read: false
   });
-  await enforceNotificationLimit(targetUserId);
+  await enforceNotificationLimit(mentionedUserId);
 }
 
 export async function sendRetweetNotification(originalTweetId, replyText, retweetId) {
@@ -403,7 +404,7 @@ export async function sendRetweetNotification(originalTweetId, replyText, retwee
     tweetText: tweetSnap.data().text || "",
     read: false
   });
-  await enforceNotificationLimit(targetUserId);
+  await enforceNotificationLimit(originalAuthorId);
 }
 
 export async function sendCommentMentionNotification(tweetId, mentionedUserId, commentText) {
@@ -433,7 +434,7 @@ export async function sendCommentMentionNotification(tweetId, mentionedUserId, c
     tweetText: tweetSnap.data().text || "",
     read: false
   });
-  await enforceNotificationLimit(targetUserId);
+  await enforceNotificationLimit(mentionedUserId);
 }
 
 export async function sendReplyMentionNotification(tweetId, commentId, mentionedUserId, replyText) {
@@ -460,7 +461,7 @@ export async function sendReplyMentionNotification(tweetId, commentId, mentioned
     commentId,
     read: false
   });
-  await enforceNotificationLimit(targetUserId);
+  await enforceNotificationLimit(mentionedUserId);
 }
 
 export async function sendFollowNotification(targetUserId) {
