@@ -50,22 +50,28 @@ document.querySelectorAll(".tab1").forEach(tab1 => {
     currentSearchTerm = term;
 
     if (tabTarget === "tagsView") {
-      if (!a) {
+      if (term) {
+        searchInput.dispatchEvent(new Event("input"));
+        a = false;
+      } else if (!a) {
         fetchTags("");
         a = true;
       }
-      if (term) searchInput.dispatchEvent(new Event("input"));
-    } else if (tabTarget === "usersView") {
-      if (!b) {
-        fetchUsers(true);
+    } 
+    else if (tabTarget === "usersView") {
+      if (term) {
+        fetchUsers(true, term);   
+        b = false;
+      } else if (!b) {
+        fetchUsers(true, "");  
         b = true;
       }
-      if (term) searchInput.dispatchEvent(new Event("input"));
-    } else if (tabTarget === "tweetsView") {
+    }
+    else if (tabTarget === "tweetsView") {
       resetTweetSearch();
       if (term.length >= 3) {
         tweetsView.innerHTML = "";
-        searchTweets(term);
+        searchInput.dispatchEvent(new Event("input"));
       } else if (term.length === 0) {
         tweetsView.innerHTML = `<p style="color:gray;font-size:15px;">enter at least 3 characters to search Wynts</p>`;
       }
@@ -103,7 +109,7 @@ searchInput.addEventListener("input", () => {
     } else if (activeTab === "usersView") {
       usersView.innerHTML = "";
       lastUserDoc = null;
-      fetchUsers(true);
+      fetchUsers(true, term);
     } else if (activeTab === "tagsView") {
       tagsView.innerHTML = "";
       fetchTags(term);
@@ -258,7 +264,7 @@ mloadMore.addEventListener("click", () => {
   loadUserMentionedTweets(uid);
 });
 
-async function fetchUsers(reset = false) {
+async function fetchUsers(reset = false, term = "") {
   if (isFetching) return;
   isFetching = true;
 
@@ -277,8 +283,8 @@ async function fetchUsers(reset = false) {
 
   const filtered = snap.docs.filter(doc => {
     const data = doc.data();
-    return doc.id !== selfUID &&
-      data.displayName?.toLowerCase().includes(currentSearchTerm);
+    if (!term) return doc.id !== selfUID;
+    return doc.id !== selfUID && data.displayName?.toLowerCase().includes(term.toLowerCase());
   });
 
   if (filtered.length === 0 && totalLoaded === 0) {
