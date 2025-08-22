@@ -3,7 +3,7 @@ import { extractMentions } from './mention.js';
 import { handleTags } from './tags.js';
 import { sendCommentNotification, sendReplyNotification, listenForUnreadNotifications, loadNotifications, sendMentionNotification, sendRetweetNotification, sendReplyMentionNotification, sendCommentMentionNotification } from './notification.js';
 import { createClient, SUPABASE_URL, SUPABASE_ANON_KEY, MAX_FILE_BYTES, supabase } from "./firebase.js";
-import { uploadToSupabase, compressImageTo480, showImagePreview, readFileAsBase64, setupVideoAutoplayOnVisibility } from "./attachments.js";
+import { uploadToSupabase, compressImageTo480, showImagePreview, readFileAsBase64, setupVideoAutoplayOnVisibility, getSupabaseVideo } from "./attachments.js";
 import { bookmark, profile, profilesub, user, usersub, tag, viewer, tweet, retweet, notification, comment, bookmarksvg, homesvg, usersvg, searchsvg, settingssvg, notifsvg, bookmarkfilled, homefilled, userfilled, searchfilled, settingsfilled, notiffilled } from "./nonsense.js"
 import { viewTweet } from "./tweetViewer.js";
 import { tokenize, formatDate, linkify, applyReadMoreLogic, parseMentionsToLinks, escapeHTML } from "./texts.js";
@@ -158,8 +158,8 @@ document.getElementById("postBtn").addEventListener("click", async () => {
   const fileInput = document.getElementById("mediaInput");
   const file = fileInput.files[0];
 
-  if (file && file.size > 3 * 1024 * 1024) {
-    alert("File size exceeds 3MB. Please choose a smaller file.");
+  if (file && file.size > 3.5 * 1024 * 1024) {
+    alert("File size exceeds 3.5MB. Please choose a smaller file.");
     btn.disabled = false;
     btn.classList.remove('disabled');
     return;
@@ -293,36 +293,6 @@ function setupSoundToggle(tweetElement) {
       button.innerHTML = anyMuted ? "<img src='/image/volume.svg'>" : "<img src='/image/volume-muted.svg'>";
     });
   });
-}
-
-async function getSupabaseVideo(fileUrl, videoId) {
-  try {
-    const res = await fetch(fileUrl);
-    if (!res.ok) throw new Error("Failed to fetch video");
-    const blob = await res.blob();
-    const objectUrl = URL.createObjectURL(blob);
-
-    const videoEl = document.getElementById(videoId);
-    if (videoEl) {
-
-      videoEl.innerHTML = "";
-
-      const source = document.createElement("source");
-      source.src = objectUrl;
-      source.type = blob.type || "video/mp4";
-      videoEl.appendChild(source);
-
-      videoEl.load();
-    }
-  } catch (err) {
-    console.error("Failed to load Supabase video:", err);
-
-    const videoEl = document.getElementById(videoId);
-    if (videoEl) {
-      videoEl.innerHTML = `<source src="${fileUrl}" type="video/mp4">`;
-      videoEl.load();
-    }
-  }
 }
 
 export async function renderTweet(t, tweetId, user, action = "prepend", container = document.getElementById("timeline")) {
@@ -758,7 +728,7 @@ let oldestSnapshotNewest = null;
 const MAX_TWEETS = 55;
 const REMOVE_BATCH = 30;
 
-function scoreTweet(t, currentUserFollowing) {
+export function scoreTweet(t, currentUserFollowing) {
   const ageHours = (Date.now() - t.createdAt.toDate().getTime()) / (1000 * 60 * 60);
 
   let score = 0;
@@ -834,10 +804,11 @@ async function loadTweets(initial = false, direction = "down", count = 15) {
 
   tweetObjs.sort((a, b) => b._score - a._score);
 
-  console.log("Scored tweets:", tweetObjs.map(t => ({
+  console.table(tweetObjs.map(t => ({
     id: t.id,
-    text: t.text,
-    score: t._score,
+    uid: t.uid,
+    text: t.text?.slice(0, 30), 
+    score: t._score.toFixed(2),
     likes: t.likeCount,
     comments: t.commentCount,
     retweets: t.retweetCount,
@@ -1954,7 +1925,7 @@ document.getElementById('mediaInput').addEventListener('change', function(e) {
   attachment.style.marginBottom = '20px';
 
   if (file) {
-    const maxSize = 3 * 1024 * 1024;
+    const maxSize = 3.5 * 1024 * 1024;
     const sizeInMB = (file.size / (1024 * 1024)).toFixed(2);
 
     const sizeCounter = document.createElement('div');
@@ -1995,7 +1966,7 @@ mediaInput1.addEventListener('change', function(e) {
   attachment1.style.marginBottom = '20px';
 
   if (file) {
-    const maxSize = 3 * 1024 * 1024;
+    const maxSize = 3.5 * 1024 * 1024;
     const sizeInMB = (file.size / (1024 * 1024)).toFixed(2);
     const sizeCounter = document.createElement('div');
     sizeCounter.style.position = 'absolute';
