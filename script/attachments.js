@@ -311,7 +311,7 @@ function setupVideoAutoplayOnVisibility(tweetElement) {
       updateVideoState(entry.target);
     });
   }, {
-    threshold: 0.65
+    threshold: 1.0
   });
 
   videos.forEach(video => {
@@ -416,4 +416,34 @@ document.body.addEventListener("click", async (e) => {
   }
 });
 
-export { uploadToSupabase, compressImageTo480, showImagePreview, readFileAsBase64, setupVideoAutoplayOnVisibility }
+async function getSupabaseVideo(fileUrl, videoId) {
+  try {
+    const res = await fetch(fileUrl);
+    if (!res.ok) throw new Error("Failed to fetch video");
+    const blob = await res.blob();
+    const objectUrl = URL.createObjectURL(blob);
+
+    const videoEl = document.getElementById(videoId);
+    if (videoEl) {
+
+      videoEl.innerHTML = "";
+
+      const source = document.createElement("source");
+      source.src = objectUrl;
+      source.type = blob.type || "video/mp4";
+      videoEl.appendChild(source);
+
+      videoEl.load();
+    }
+  } catch (err) {
+    console.error("Failed to load Supabase video:", err);
+
+    const videoEl = document.getElementById(videoId);
+    if (videoEl) {
+      videoEl.innerHTML = `<source src="${fileUrl}" type="video/mp4">`;
+      videoEl.load();
+    }
+  }
+}
+
+export { uploadToSupabase, compressImageTo480, showImagePreview, readFileAsBase64, setupVideoAutoplayOnVisibility, getSupabaseVideo }
