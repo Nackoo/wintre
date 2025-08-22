@@ -446,4 +446,127 @@ async function getSupabaseVideo(fileUrl, videoId) {
   }
 }
 
-export { uploadToSupabase, compressImageTo480, showImagePreview, readFileAsBase64, setupVideoAutoplayOnVisibility, getSupabaseVideo }
+function getSafeFilename(tweetId, url, index = 0) {
+  const urlParts = url.split(".");
+  const ext = urlParts[urlParts.length - 1].split("?")[0];
+  return `tweet-${tweetId}-${Date.now()}-${index}.${ext}`;
+}
+
+async function downloadFile(url, filename) {
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+
+    let ext = "";
+    if (blob.type.includes("png")) ext = ".png";
+    else if (blob.type.includes("jpeg")) ext = ".jpg";
+    else if (blob.type.includes("gif")) ext = ".gif";
+    else if (blob.type.includes("mp4")) ext = ".mp4";
+    else if (blob.type.includes("webm")) ext = ".webm";
+
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = objectUrl;
+    a.download = filename.endsWith(ext) ? filename : filename + ext;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(objectUrl);
+  } catch (err) {
+    console.error("Download failed:", err);
+  }
+}
+
+document.body.addEventListener("change", (e) => {
+  if (e.target.classList.contains("comment-media-input") && e.target.closest(".reply-box")) {
+    const commentId = e.target.closest(".reply-box").id.replace("reply-box-", "");
+    showImagePreview(e.target, `replyPreview-${commentId}`);
+  }
+});
+
+document.getElementById("commentMediaInput").addEventListener("change", () => {
+  showImagePreview(document.getElementById("commentMediaInput"), "commentPreview");
+});
+
+const mediaInput = document.getElementById('mediaInput');
+const attachment = document.getElementById('tweetPreview');
+
+document.getElementById('mediaInput').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  attachment.innerHTML = '';
+  attachment.style.position = 'relative';
+  attachment.style.marginBottom = '20px';
+
+  if (file) {
+    const maxSize = 3.5 * 1024 * 1024;
+    const sizeInMB = (file.size / (1024 * 1024)).toFixed(2);
+
+    const sizeCounter = document.createElement('div');
+    sizeCounter.style.position = 'absolute';
+    sizeCounter.style.top = '10px';
+    sizeCounter.style.left = '10px';
+    sizeCounter.style.background = 'rgba(0,0,0,0.6)';
+    sizeCounter.style.color = 'white';
+    sizeCounter.style.padding = '2px 6px';
+    sizeCounter.style.borderRadius = '4px';
+    sizeCounter.style.fontSize = '12px';
+    sizeCounter.style.zIndex = '10';
+    sizeCounter.textContent = `${sizeInMB} MB`;
+
+    if (file.size > maxSize) {
+      sizeCounter.style.background = '#db1d23';
+      attachment.appendChild(sizeCounter);
+    }
+
+    attachment.appendChild(sizeCounter);
+
+    const preview = document.createElement(file.type.startsWith('video') ? 'video' : 'img');
+    preview.src = URL.createObjectURL(file);
+    preview.style.maxWidth = '100%';
+    preview.style.maxHeight = '333px';
+    preview.controls = file.type.startsWith('video');
+    attachment.appendChild(preview);
+  }
+});
+
+const mediaInput1 = document.getElementById('retweetMedia-TWEETID');
+const attachment1 = document.getElementById('retweetPreview-TWEETID');
+
+mediaInput1.addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  attachment1.innerHTML = '';
+  attachment1.style.position = 'relative';
+  attachment1.style.marginBottom = '20px';
+
+  if (file) {
+    const maxSize = 3.5 * 1024 * 1024;
+    const sizeInMB = (file.size / (1024 * 1024)).toFixed(2);
+    const sizeCounter = document.createElement('div');
+    sizeCounter.style.position = 'absolute';
+    sizeCounter.style.top = '10px';
+    sizeCounter.style.left = '10px';
+    sizeCounter.style.background = 'rgba(0,0,0,0.6)';
+    sizeCounter.style.color = 'white';
+    sizeCounter.style.padding = '2px 6px';
+    sizeCounter.style.borderRadius = '4px';
+    sizeCounter.style.fontSize = '12px';
+    sizeCounter.style.zIndex = '10';
+    sizeCounter.textContent = `${sizeInMB} MB`;
+
+    if (file.size > maxSize) {
+      sizeCounter.style.background = '#db1d23';
+      attachment1.appendChild(sizeCounter);
+    }
+
+    attachment1.appendChild(sizeCounter);
+
+    const preview = document.createElement(file.type.startsWith('video') ? 'video' : 'img');
+    preview.src = URL.createObjectURL(file);
+    preview.style.maxWidth = '100%';
+    preview.style.maxHeight = '333px';
+    preview.controls = file.type.startsWith('video');
+    attachment1.appendChild(preview);
+  }
+});
+
+export { uploadToSupabase, compressImageTo480, showImagePreview, readFileAsBase64, setupVideoAutoplayOnVisibility, getSupabaseVideo, getSafeFilename, downloadFile }
