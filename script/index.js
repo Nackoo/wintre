@@ -44,8 +44,19 @@ async function retryWhenBackOnline() {
   loadingScreen.style.opacity = "0";
 }
 
+let currentUserFollowing = new Set();
+
+async function loadFollowing(uid) {
+  const followingRef = collection(db, "users", uid, "following");
+  const snap = await getDocs(followingRef);
+
+  currentUserFollowing = new Set(snap.docs.map(d => d.id));
+  console.log("Following loaded:", currentUserFollowing);
+}
+
 onAuthStateChanged(auth, async (user) => {
   if (user) {
+    await loadFollowing(user.uid); 
     loadTweets(true);
     renderTweets(user);
     loadNotifications(true);
@@ -184,6 +195,9 @@ document.getElementById("postBtn").addEventListener("click", async () => {
       media: mediaURL,
       mediaType,
       mediaPath,
+      likeCount: 0,
+      commentCount: 0,
+      retweetCount: 0,
       createdAt: new Date(),
       searchTokens: tokenize(text),
       uid: user.uid,
@@ -658,10 +672,16 @@ document.body.addEventListener("click", async (e) => {
   const data = tweetSnap.data();
 
   if (data.retweetOf) {
-    const originalRef = doc(db, "tweets", data.retweetOf);
+  const originalRef = doc(db, "tweets", data.retweetOf);
+  const originalSnap = await getDoc(originalRef);
+
+  if (originalSnap.exists()) {
     await updateDoc(originalRef, {
       retweetCount: increment(-1)
     });
+    } else {
+      console.warn("Original tweet already deleted, skipping retweetCount decrement");
+    }
   }
 
   if (data.mediaType === "video" && data.mediaPath) {
@@ -738,11 +758,37 @@ let oldestSnapshotNewest = null;
 const MAX_TWEETS = 55;
 const REMOVE_BATCH = 30;
 
+function scoreTweet(t, currentUserFollowing) {
+  const ageHours = (Date.now() - t.createdAt.toDate().getTime()) / (1000 * 60 * 60);
+
+  let score = 0;
+
+  // decay after some time
+  const freshness = Math.exp(-ageHours / 48) * 30;
+  score += freshness;
+
+  // Engagement
+  score += (t.likeCount || 0) * 3;
+  score += (t.commentCount || 0) * 2;
+  score += (t.retweetCount || 0) * 4;
+
+  // Boost followed users
+  if (currentUserFollowing?.has(t.uid)) {
+    score += 15;
+  }
+
+  // Tiny shuffle to break ties
+  score += Math.random();
+
+  return score;
+}
+
 async function loadTweets(initial = false, direction = "down", count = 15) {
   if (!isOnline) {
     showConnectionLost();
     return;
   }
+
   if (loadingMore || noMoreTweets) return;
   loadingMore = true;
 
@@ -757,65 +803,58 @@ async function loadTweets(initial = false, direction = "down", count = 15) {
 
   const tweetsRef = collection(db, "tweets");
 
-  let mostLikedQuery, newestQuery;
+  let baseQuery;
   if (direction === "down") {
-    mostLikedQuery = newestSnapshotMostLiked ?
-      query(tweetsRef, orderBy("likeCount", "desc"), startAfter(newestSnapshotMostLiked), limit(count)) :
-      query(tweetsRef, orderBy("likeCount", "desc"), limit(count));
-
-    newestQuery = newestSnapshotNewest ?
-      query(tweetsRef, orderBy("createdAt", "desc"), startAfter(newestSnapshotNewest), limit(count)) :
-      query(tweetsRef, orderBy("createdAt", "desc"), limit(count));
+    baseQuery = newestSnapshotNewest
+      ? query(tweetsRef, orderBy("createdAt", "desc"), startAfter(newestSnapshotNewest), limit(count))
+      : query(tweetsRef, orderBy("createdAt", "desc"), limit(count));
   } else {
-    mostLikedQuery = oldestSnapshotMostLiked ?
-      query(tweetsRef, orderBy("likeCount", "asc"), startAfter(oldestSnapshotMostLiked), limit(count)) :
-      query(tweetsRef, orderBy("likeCount", "asc"), limit(count));
-
-    newestQuery = oldestSnapshotNewest ?
-      query(tweetsRef, orderBy("createdAt", "asc"), startAfter(oldestSnapshotNewest), limit(count)) :
-      query(tweetsRef, orderBy("createdAt", "asc"), limit(count));
+    baseQuery = oldestSnapshotNewest
+      ? query(tweetsRef, orderBy("createdAt", "asc"), startAfter(oldestSnapshotNewest), limit(count))
+      : query(tweetsRef, orderBy("createdAt", "asc"), limit(count));
   }
 
-  const [mostLikedSnap, newestSnap] = await Promise.all([
-    getDocs(mostLikedQuery),
-    getDocs(newestQuery),
-  ]);
+  const snap = await getDocs(baseQuery);
 
-  if (mostLikedSnap.empty && newestSnap.empty) {
+  if (snap.empty) {
     noMoreTweets = true;
     loadingMore = false;
     if (initial && loadingScreen) loadingScreen.style.display = "none";
     return;
   }
 
-  const usedIds = new Set();
-  const mixed = [];
-  const mostLikedDocs = mostLikedSnap.docs;
-  const newestDocs = newestSnap.docs;
-  const maxLength = Math.max(mostLikedDocs.length, newestDocs.length);
+  const tweetObjs = snap.docs.map(docSnap => {
+    const data = docSnap.data();
+    return {
+      id: docSnap.id,
+      ...data,
+      _score: scoreTweet(data, currentUserFollowing)
+    };
+  });
 
-  for (let i = 0; i < maxLength; i++) {
-    if (mostLikedDocs[i] && !usedIds.has(mostLikedDocs[i].id)) {
-      mixed.push(mostLikedDocs[i]);
-      usedIds.add(mostLikedDocs[i].id);
-    }
-    if (newestDocs[i] && !usedIds.has(newestDocs[i].id)) {
-      mixed.push(newestDocs[i]);
-      usedIds.add(newestDocs[i].id);
-    }
-  }
+  tweetObjs.sort((a, b) => b._score - a._score);
+
+  console.log("Scored tweets:", tweetObjs.map(t => ({
+    id: t.id,
+    text: t.text,
+    score: t._score,
+    likes: t.likeCount,
+    comments: t.commentCount,
+    retweets: t.retweetCount,
+    createdAt: t.createdAt?.toDate().toISOString(),
+    followed: currentUserFollowing?.has(t.uid) || false
+  })));
+
   if (direction === "down") {
-    mixed.forEach((docSnap) => {
-      renderTweet(docSnap.data(), docSnap.id, auth.currentUser, "append");
+    tweetObjs.forEach(t => {
+      renderTweet(t, t.id, auth.currentUser, "append");
     });
-    newestSnapshotMostLiked = mostLikedDocs[mostLikedDocs.length - 1] || newestSnapshotMostLiked;
-    newestSnapshotNewest = newestDocs[newestDocs.length - 1] || newestSnapshotNewest;
+    newestSnapshotNewest = snap.docs[snap.docs.length - 1] || newestSnapshotNewest;
   } else {
-    mixed.reverse().forEach((docSnap) => {
-      renderTweet(docSnap.data(), docSnap.id, auth.currentUser, "prepend");
+    tweetObjs.reverse().forEach(t => {
+      renderTweet(t, t.id, auth.currentUser, "prepend");
     });
-    oldestSnapshotMostLiked = mostLikedDocs[mostLikedDocs.length - 1] || oldestSnapshotMostLiked;
-    oldestSnapshotNewest = newestDocs[newestDocs.length - 1] || oldestSnapshotNewest;
+    oldestSnapshotNewest = snap.docs[snap.docs.length - 1] || oldestSnapshotNewest;
   }
 
   if (initial && loadingScreen) {
@@ -836,8 +875,10 @@ async function loadTweets(initial = false, direction = "down", count = 15) {
       }
     }
   }
+
   loadingMore = false;
 }
+
 window.addEventListener("scroll", async () => {
   const tweets = document.querySelectorAll(".tweet");
   if (loadingMore) return;
@@ -893,11 +934,15 @@ document.body.addEventListener("click", async (e) => {
         <div class="spoiler-overlay">
           <div class="spoilertxt">spoiler</div>
         </div>
-        <video id="${vidId}" style="max-width: 100%; max-height: 300px;" muted controls></video>
+        <video id="${vidId}" style="max-width: 100%; max-height: 300px;" muted controls>
+          <source src="${mediaSrc}" type="video/mp4">
+        </video>
       </div>` :
           `
       <div class="attachment">
-        <video id="${vidId}" controls style="max-width: 100%; max-height: 300px;"></video>
+        <video id="${vidId}" controls style="max-width: 100%; max-height: 300px;">
+          <source src="${mediaSrc}" type="video/mp4">
+        </video>
       </div>`;
       } else {
         mediaHTML = containsSpoiler ?
@@ -1793,6 +1838,24 @@ sendRetweet.onclick = async () => {
     return;
   }
 
+  const userRef = doc(db, "users", user.uid);
+  const userSnap = await getDoc(userRef);
+  if (userSnap.exists()) {
+    const data = userSnap.data();
+    if (data.cooldown?.toDate) {
+      const now = new Date();
+      const cooldownTime = data.cooldown.toDate();
+      if (now < cooldownTime) {
+        const diffMs = cooldownTime - now;
+        const diffMins = Math.ceil(diffMs / 60000);
+        alert(`Cooldown resets in ${diffMins} minute${diffMins > 1 ? 's' : ''}`);
+        sendRetweet.disabled = false;
+        sendRetweet.classList.remove('disabled');
+        return;
+      }
+    }
+  }
+
   let media = "";
   let mediaType = "";
 
@@ -1812,6 +1875,8 @@ sendRetweet.onclick = async () => {
       media,
       mediaType,
       likeCount: 0,
+      commentCount: 0,
+      retweetCount: 0,
       createdAt: new Date(),
       uid,
       ...(mentions.length > 0 && {
