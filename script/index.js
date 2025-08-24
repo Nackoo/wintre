@@ -856,6 +856,7 @@ async function loadTweets(initial = false, direction = "down", count = 15) {
 
   tweetObjs.sort((a, b) => b._score - a._score);
 
+  /*
   console.table(tweetObjs.map(t => ({
     id: t.id,
     uid: t.uid,
@@ -866,7 +867,8 @@ async function loadTweets(initial = false, direction = "down", count = 15) {
     createdAt: t.createdAt?.toDate().toISOString(),
     followed: currentUserFollowing?.has(t.uid) || false
   })));
-
+  */
+  
   if (direction === "down") {
     tweetObjs.forEach(t => {
       renderTweet(t, t.id, auth.currentUser, "append");
