@@ -1,4 +1,4 @@
-import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, getDocs, query, where, auth, db } from "./firebase.js";
+import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, getDocs, query, where, auth, db, signOut } from "./firebase.js";
 
 const bannerInput = document.getElementById("banner-input");
 const bannerPreview = document.getElementById("banner-preview");
