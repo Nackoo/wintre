@@ -5,7 +5,10 @@ this project is powered by firebase & supabase.
 ## preview
 
 <img src="/github assets/preview1.webp">
+
+<div style="width: 100%; display: flex; justify-content: center; border-radius: 15px; background: #161b22;">
 <img src="/github assets/preview2.webp">
+</div>
 
 ## firestore rules
 ```
