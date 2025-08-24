@@ -7,7 +7,7 @@ this project is powered by firebase & supabase.
 <img src="/github assets/preview1.webp">
 
 <p align="center">
-  <img src="./github assets/preview2.webp" alt="Preview" width="600">
+  <img src="./github assets/preview2.webp">
 </p>
 
 ## firestore rules
