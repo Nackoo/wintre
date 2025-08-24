@@ -258,22 +258,6 @@ hr {
   display: none;
 }
 
-.comment-box {
-  padding: 20px;
-  width: 100%;
-  max-width: 500px;
-  border-radius: 15px;
-  max-height: 90vh;
-  overflow-y: auto;
-  background: var(--dark);
-  color: var(--color);
-  border: var(--border);
-}
-
-.comment-scrollbox textarea {
-  border: 1px solid grey;
-}
-
 .no-margin {
   margin: 0;
   margin-bottom: 10px;
@@ -287,25 +271,6 @@ svg {
   margin-bottom: -3px;
 }
 
-.avatar {
-  border-radius: 50%;
-  min-width: 30px;
-  max-width: 30px;
-  max-height: 30px;
-  min-height: 30px;
-  object-fit: cover;
-  object-position: center;
-}
-
-#userInfo {
-  display: flex;
-  align-items: center;
-}
-
-.load-more-replies {
-  margin-top: 15px !important;
-}
-
 #postBtn {
   background: #1da1f2;
   color: white;
@@ -314,12 +279,6 @@ svg {
 
 #postBtn:hover {
   background: #0d8ddf;
-}
-
-#commentTweet {
-  margin: 20px 0;
-  border-radius: 15px;
-  border: var(--border) !important;
 }
 
 textarea {
@@ -360,160 +319,8 @@ span {
   font-size: 15px;
 }
 
-.tweet {
-  background: var(--dark);
-  padding: 20px 10px;
-  border-top: var(--border);
-  border-left: var(--border);
-  border-right: var(--border);
-}
-
-.tweet:last-child {
-  border-bottom: var(--border);
-}
-
-.tweet:hover {
-  background: var(--normal);
-}
-
-.retweet {
-  background: var(--dark);
-  border: var(--border) !important;
-  margin: 10px 0;
-  border-radius: 15px;
-}
-
-.retweet:hover {
-  background: var(--light);
-}
-
-#commentTweet {
-  margin-bottom: 15px;
-}
-
-.reply-block p,
-.comment-item p,
-.tweet p,
-#commentTweet p {
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  word-break: break-word;
-  overflow-wrap: break-word;
-}
-
-.like-btn {
-  font-size: 15px;
-  margin-right: 6px;
-  vertical-align: middle;
-}
-
 .hidden {
   display: none !important;
-}
-
-.comment-item {
-  border-bottom: var(--border);
-  padding: 10px 0;
-  position: relative;
-}
-
-.comment-item:hover {
-  background: var(--normal);
-}
-
-.comment-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.comment-box {
-  overflow-y: auto;
-}
-
-.comment-avatar {
-  min-width: 30px;
-  max-width: 30px;
-  max-height: 30px;
-  min-height: 30px;
-  border-radius: 50%;
-  object-fit: cover;
-}
-
-.reply-btn {
-  display: none;
-  font-size: 12px;
-  cursor: pointer;
-  margin-left: 42px;
-  color: #0077ff;
-  text-decoration: underline;
-}
-
-.comment-item:first-child {
-  margin-top: 15px;
-}
-
-.reply-block:first-child {
-  margin-top: 25px;
-}
-
-.reply-box {
-  margin-top: 10px;
-}
-
-.reply-text {
-  width: 100%;
-  height: 60px;
-  margin-bottom: -7px;
-}
-
-.comment-header:not(.reply-block .comment-header) {
-  margin-bottom: 13px;
-}
-
-.reply-block {
-  border-left: 3px solid darkgrey;
-  padding-left: 10px;
-  margin-top: 13px;
-  padding-left: 14px;
-}
-
-.comment-scrollbox {
-  overflow-y: auto;
-}
-
-#commentList {
-  margin-top: 10px;
-}
-
-::-webkit-scrollbar {
-  width: 0;
-}
-
-.tweet-date,
-.comment-date,
-.reply-date {
-  font-size: 0.8em;
-  color: #888;
-  margin-top: 4px;
-}
-
-.comment-header {
-  align-items: center;
-}
-
-#retweetText,
-#retweetOriginal {
-  box-sizing: border-box;
-}
-
-#commentInput,
-#sendComment {
-  margin: 0;
-}
-
-#commentInput {
-  margin-bottom: 5px;
 }
 
 .attachment {
@@ -789,4 +596,57 @@ input:focus {
 #tweetPreview,
 #retweetPreview-TWEETID {
   overflow-x: auto;
+}
+
+@media (max-width: 700px) {
+  .smallbar {
+    position: fixed;
+    transition: bottom 0.4s ease;
+    align-items: center;
+  }
+}
+
+#timeline-header {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.loader {
+  width: 10px;
+  height: 10px;
+  border: 3px solid #ccc;
+  border-top: 3px solid #333;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.smallbar #unread {
+  height: 10px;
+  width: 10px;
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: #db1d23;
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+
+.smallbar #unread.has-unread {
+  opacity: 1;
+}
+
+.svg {
+  position: relative;
+  padding: 0;
+  margin: 0;
+  height: 30px;
+  width: 30px;
 }
