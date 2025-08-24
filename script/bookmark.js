@@ -85,7 +85,7 @@ async function loadBookmarks(initial = false) {
   loading = false;
 }
 
-document.querySelector('.smallbar img[src="/image/bookmark.svg"]').addEventListener('click', async () => {
+document.getElementById('bookmarksvg').addEventListener('click', async () => {
   if (!bookmarksLoadedOnce) { 
     bookmarkList.innerHTML = '';
     lastDoc = null;
