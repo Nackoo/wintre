@@ -253,7 +253,7 @@ function createDateDivider(dateText) {
   return wrapper;
 }
 
-document.getElementById('notifsvg').addEventListener("click", async () => {
+document.getElementById('notifsvg1').addEventListener("click", async () => {
   document.getElementById("notificationOverlay").classList.remove("hidden");
   notificationsContainer.innerHTML = "";
   notificationLastDoc = null;
