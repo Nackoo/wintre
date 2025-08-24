@@ -10,19 +10,31 @@ export const retweet = document.getElementById('retweetOverlay');
 export const notification = document.getElementById('notificationOverlay');
 export const comment = document.getElementById('commentOverlay');
 
-export const bookmarksvg = document.querySelector('.smallbar img[src="/image/bookmark.svg"]');
-export const homesvg = document.querySelector('.smallbar img[src="/image/home.svg"]');
-export const usersvg = document.querySelector('.smallbar img[src="/image/user.svg"]');
-export const searchsvg = document.querySelector('.smallbar img[src="/image/search.svg"]');
-export const settingssvg = document.querySelector('.smallbar img[src="/image/settings.svg"]');
-export const notifsvg = document.getElementById('notifsvg');
+export const bookmarksvg = document.getElementById("bookmarksvg");
+export const homesvg = document.getElementById("homesvg");
+export const usersvg = document.getElementById("usersvg");
+export const searchsvg = document.getElementById("searchsvg");
+export const settingssvg = document.getElementById("settingssvg");
+export const notifsvg = document.getElementById("notifsvg1");
 
-export const bookmarkfilled = document.querySelector('.smallbar img[src="/image/bookmark-filled.svg"]');
-export const homefilled = document.querySelector('.smallbar img[src="/image/home-filled.svg"]');
-export const userfilled = document.querySelector('.smallbar img[src="/image/user-filled.svg"]');
-export const searchfilled = document.querySelector('.smallbar img[src="/image/search-filled.svg"]');
-export const settingsfilled = document.querySelector('.smallbar img[src="/image/settings-filled.svg"]');
-export const notiffilled = document.querySelector('.smallbar img[src="/image/notification-filled.svg"]');
+export const bookmarkfilled = document.getElementById("bookmarkfilled");
+export const homefilled = document.getElementById("homefilled");
+export const userfilled = document.getElementById("userfilled");
+export const searchfilled = document.getElementById("searchfilled");
+export const settingsfilled = document.getElementById("settingsfilled");
+export const notiffilled = document.getElementById("notiffilled");
+
+const tabcontent = document.querySelectorAll(".tab-content");
+const tweetsTab = document.querySelector('.tab1[data-target="tweetsView"]');
+const tweetsView = document.getElementById("tweetsView");
+const tab1 = document.querySelectorAll(".tab1");
+
+function tweetviewactive() {
+  tabcontent.forEach(c => c.classList.add("hidden")); 
+  tweetsView.classList.remove("hidden"); 
+  tab1.forEach(t => t.classList.remove("active"));
+  tweetsTab.classList.add("active");
+}
 
 const panelsToHide = () => [
   profile, profilesub, user, usersub, tag, document.getElementById("followOverlay"),
@@ -72,6 +84,7 @@ const clickHandler = (clickedIcon) => {
     outlineIcons[clickedIcon]?.classList.add("hidden");
     filledIconMap[clickedIcon]?.classList.remove("hidden");
     overlayMap[clickedIcon]?.classList.remove("hidden");
+    tweetviewactive();
   };
 };
 
@@ -104,6 +117,7 @@ function hideuser() {
   homefilled.classList.remove('hidden');
   searchfilled.classList.add('hidden');
   searchsvg.classList.remove('hidden');
+  tweetviewactive();
 }
 
 function hidesettings() {
@@ -125,12 +139,7 @@ function hidenotif() {
 function closeUser() {
   usersub?.classList.add('hidden');
   user.classList.remove('hidden');
-  document.querySelectorAll(".tab1").forEach(t => t.classList.remove("active"));
-  document.querySelectorAll(".tab-content").forEach(c => c.classList.add("hidden"));
-  const tweetsTab = document.querySelector('.tab1[data-target="tweetsView"]');
-  tweetsTab.classList.add("active");
-  const tweetsView = document.getElementById("tweetsView");
-  tweetsView.classList.remove("hidden");
+  tweetviewactive();
   goHome();
 }
 
