@@ -1,11 +1,10 @@
 @media (min-width: 700px) {
-  .smallbar img[src="/image/home.svg"] {
-    margin-top: 20px
-  }
-
   .user-box {
     border-right: var(--border);
     border-left: var(--border);
+  }
+  #logout, #tosbtn {
+    display: none !important;
   }
 }
 
@@ -127,6 +126,17 @@
   color: #db1d23;
   padding: 7px 20px;
   font-weight: bold;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+#logout svg {
+  color: #db1d23;
+}
+
+#logout:hover svg {
+  color: white;
 }
 
 #logout:hover {
@@ -369,7 +379,7 @@
   opacity: 1;
 }
 
-#notifsvg {
+.svg {
   position: relative;
   padding: 0;
   margin: 0;
@@ -378,7 +388,7 @@
 }
 
 @media (max-width: 700px) {
-  #notifsvg {
+  .svg {
     height: 25px;
     width: 25px;
   }
