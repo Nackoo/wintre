@@ -6,9 +6,9 @@ this project is powered by firebase & supabase.
 
 <img src="/github assets/preview1.webp">
 
-<div style="width: 100%; display: flex; justify-content: center; border-radius: 15px; background: #161b22;">
-<img src="/github assets/preview2.webp">
-</div>
+<p align="center">
+  <img src="./github assets/preview2.webp" alt="Preview" width="600">
+</p>
 
 ## firestore rules
 ```
