@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 
@@ -206,11 +205,8 @@
           <div class="flex">
             <button id="sendRetweet">Post</button>
             <label class="custom-file-btn" for="retweetMedia-TWEETID"><img src="/image/upload.svg"></label>
-            <input type="file" id="retweetMedia-TWEETID" class="hidden-input" accept="image/*,video/*">
-            <button class="no-bg" style="margin-left: auto;" onclick="
-        document.getElementById('retweetText').value = '';
-        document.getElementById('retweetOverlay').classList.add('hidden');
-      ">Cancel</button>
+            <input type="file" id="retweetMedia-TWEETID" class="hidden-input" accept="image/*,video/*" multiple>
+            <button class="no-bg" style="margin-left: auto;" id="cancelretweet">Cancel</button>
           </div>
           <br><br><br>
         </div>
@@ -272,11 +268,8 @@
           <div class="flex">
             <button id="postBtn" style="padding:7px 15px">Wynt</button>
             <label class="custom-file-btn" for="mediaInput"><img src="/image/upload.svg"></label>
-            <input type="file" id="mediaInput" class="hidden-input" accept="image/*,video/*">
-            <button class="no-bg" style="margin-left: auto;" onclick="
-  document.getElementById('tweetInput').value = ''; 
-  document.getElementById('tweetOverlay').classList.add('hidden');
-       ">cancel</button>
+            <input type="file" id="mediaInput" class="hidden-input" accept="image/*,video/*" multiple>
+            <button class="no-bg" style="margin-left: auto;" id="canceltweet">cancel</button>
           </div>
         </div>
         <br><br><br>
@@ -298,7 +291,7 @@
   </div>
 
   <div class="smallbar">
-    <div id="homefilled" class="flexx">
+    <div id="homefilled" class="flexx active">
       <div class="svg">
         <img src="/image/home-filled.svg">
       </div>
@@ -325,7 +318,7 @@
       </div>
     </div>
 
-    <div id="bookmarkfilled" class="flexx hidden">
+    <div id="bookmarkfilled" class="flexx hidden active">
       <div class="svg">
         <img src="/image/bookmark-filled.svg">
       </div>
@@ -343,7 +336,7 @@
       </div>
     </div>
 
-    <div id="userfilled" class="flexx hidden">
+    <div id="userfilled" class="flexx hidden active">
       <div class="svg">
         <img src="/image/user-filled.svg">
       </div>
@@ -361,7 +354,7 @@
       </div>
     </div>
 
-    <div id="searchfilled" class="flexx hidden">
+    <div id="searchfilled" class="flexx hidden active">
       <div class="svg">
         <img src="/image/search-filled.svg">
       </div>
@@ -380,7 +373,7 @@
       </div>
     </div>
 
-    <div id="notiffilled" class="flexx hidden">
+    <div id="notiffilled" class="flexx hidden active">
       <div class="svg">
         <img src="/image/notification-filled.svg">
       </div>
@@ -398,7 +391,7 @@
       </div>
     </div>
 
-    <div id="settingsfilled" class="flexx hidden">
+    <div id="settingsfilled" class="flexx hidden active">
       <div class="svg">
         <img src="/image/settings-filled.svg">
       </div>
