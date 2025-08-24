@@ -172,6 +172,10 @@ body {
     padding-bottom: 25px;
   }
 
+  .smallbar .active {
+    background: var(--normal);
+  }
+
   .flexx {
     display: flex;
     align-items: center;
@@ -780,4 +784,9 @@ input {
 
 input:focus {
   outline: none;
+}
+
+#tweetPreview,
+#retweetPreview-TWEETID {
+  overflow-x: auto;
 }
