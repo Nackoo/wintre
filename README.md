@@ -94,7 +94,9 @@ service cloud.firestore {
         (request.writeFields.size() == 1 &&
         request.writeFields.hasOnly(['commentCount'])) ||
         (request.writeFields.size() == 1 &&
-        request.writeFields.hasOnly(['retweetCount'])));
+        request.writeFields.hasOnly(['retweetCount'])) ||
+        (request.writeFields.size() == 1 &&
+        request.writeFields.hasOnly(['viewsCount'])));
       allow delete: if request.auth != null &&
         request.auth.uid == resource.data.uid;
 
