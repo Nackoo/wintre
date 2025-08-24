@@ -65,6 +65,25 @@ onAuthStateChanged(auth, async (user) => {
     const ref = doc(db, "users", user.uid);
     const snap = await getDoc(ref);
 
+    const avatarEl = document.querySelector(".account-avatar");
+    const nameEl = document.querySelector(".account-name");
+
+    let displayName = user.displayName || "Anonymous";
+    let photoURL = user.photoURL || "/image/default-avatar.jpg";
+
+    if (snap.exists()) {
+      const data = snap.data();
+      if (data.displayName) displayName = data.displayName;
+      if (data.photoURL) photoURL = data.photoURL;
+    }
+
+    if (avatarEl) {
+      avatarEl.src = photoURL;
+    }
+    if (nameEl) {
+      nameEl.textContent = displayName;
+    }
+
     if (!snap.exists()) {
 
       const rawName = user.displayName || "user";
@@ -197,6 +216,7 @@ document.getElementById("postBtn").addEventListener("click", async () => {
       mediaPath,
       likeCount: 0,
       commentCount: 0,
+      viewsCount: 0,
       retweetCount: 0,
       createdAt: new Date(),
       searchTokens: tokenize(text),
@@ -342,14 +362,8 @@ export async function renderTweet(t, tweetId, user, action = "prepend", containe
 
     }
   }
-  const likeCountSnap = await getCountFromServer(
-    collection(db, "tweets", tweetId, "likes")
-  );
-  const likeCount = likeCountSnap.data().count;
-  const viewCountSnap = await getCountFromServer(
-    collection(db, "tweets", tweetId, "views")
-  );
-  const viewCount = viewCountSnap.data().count;
+  const likeCount = t.likeCount || 0;
+  const viewCount = t.viewsCount || 0;
   const commentCount = t.commentCount || 0;
   const retweetCount = t.retweetCount || 0;
   const dateStr = formatDate(t.createdAt);
@@ -705,10 +719,17 @@ const observer = new IntersectionObserver(async (entries, obs) => {
       const tweetId = el.dataset.id;
 
       const viewRef = doc(db, "tweets", tweetId, "views", auth.currentUser.uid);
+      const tweetRef = doc(db, "tweets", tweetId);
+
       const viewSnap = await getDoc(viewRef);
       if (!viewSnap.exists()) {
+
         await setDoc(viewRef, {
           viewedAt: new Date()
+        });
+
+        await updateDoc(tweetRef, {
+          viewsCount: increment(1)
         });
       }
 
@@ -1051,6 +1072,33 @@ document.getElementById("closeComment").onclick = () => {
   document.getElementById("commentOverlay").classList.add("hidden");
 };
 
+let isOpen = false;
+
+const smallbar1 = document.querySelector('.smallbar1');
+const smallbar2 = document.querySelector('.smallbar2');
+const arrow = document.querySelector('.smallbar1 img[src="/image/angle.svg"]');
+
+smallbar1.addEventListener('click', (e) => {
+  e.stopPropagation(); 
+  if (!isOpen) {
+    arrow.style.transform = 'rotate(180deg)';
+    smallbar2.classList.remove('hidden');
+    isOpen = true;
+  } else {
+    arrow.style.transform = 'rotate(0deg)';
+    smallbar2.classList.add('hidden');
+    isOpen = false;
+  }
+});
+
+document.addEventListener('click', (e) => {
+  if (isOpen && !smallbar1.contains(e.target) && !smallbar2.contains(e.target)) {
+    arrow.style.transform = 'rotate(0deg)';
+    smallbar2.classList.add('hidden');
+    isOpen = false;
+  }
+});
+
 let activeReplyCommentId = null;
 
 document.body.addEventListener("click", async (e) => {
@@ -1130,11 +1178,7 @@ async function loadComments(tweetId) {
     const commentId = docSnap.id;
     const isPinned = commentId === pinnedCommentId;
     const d = docSnap.data();
-
-    const replyCountSnap = await getCountFromServer(
-      collection(db, "tweets", tweetId, "comments", commentId, "replies")
-    );
-    const replyCount = replyCountSnap.data().count;
+    const replyCount = d.replyCount || 0;
 
     let displayName = d.name;
     let avatar = d.photoURL;
@@ -1163,11 +1207,7 @@ async function loadComments(tweetId) {
     const commentLikeRef = doc(db, "tweets", tweetId, "comments", commentId, "likes", auth.currentUser.uid);
     const commentLikeSnap = await getDoc(commentLikeRef);
     const isCommentLiked = commentLikeSnap.exists();
-
-    const commentLikeCountSnap = await getCountFromServer(
-      collection(db, "tweets", tweetId, "comments", commentId, "likes")
-    );
-    const commentLikeCount = commentLikeCountSnap.data().count;
+    const commentLikeCount = d.likeCount || 0;
 
     const creatorLikeRef = doc(db, "tweets", tweetId, "comments", commentId, "likes", tweetOwnerId);
     const creatorLikeSnap = await getDoc(creatorLikeRef);
@@ -1514,18 +1554,6 @@ async function loadReplies(tweetId, commentId) {
       console.warn("Could not fetch user profile:", err);
     }
 
-    const replylikeCountSnap = await getCountFromServer(
-      collection(
-        db,
-        "tweets",
-        tweetId,
-        "comments",
-        commentId,
-        "replies",
-        rId,
-        "likes"
-      )
-    );
     const replylikeCount = r.likeCount || 0;
 
     const replyHTML = document.createElement("div");
@@ -1727,8 +1755,7 @@ document.body.addEventListener("click", async (e) => {
   const dateStr = `${date.getDate()} ${date.toLocaleString('default', { month: 'long' })} ${date.getFullYear()} • ${date.getHours()}.${String(date.getMinutes()).padStart(2, '0')}`;
 
   const retweetQuery = query(collection(db, "tweets"), where("retweetOf", "==", tweetId));
-  const retweetSnap = await getCountFromServer(retweetQuery);
-  const retweetCount = retweetSnap.data().count;
+  const retweetCount = t.retweetCount;
 
   let retweetMediaHTML = "";
   let vidId = null;
@@ -1843,6 +1870,7 @@ sendRetweet.onclick = async () => {
       mediaType,
       likeCount: 0,
       commentCount: 0,
+      viewsCount: 0,
       retweetCount: 0,
       createdAt: new Date(),
       uid,
