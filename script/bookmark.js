@@ -37,8 +37,6 @@ async function loadBookmarks(initial = false) {
     return;
   }
 
-  console.log("Fetched bookmarked wint docs:", snap.docs.map(d => d.id));
-
   if (snap.empty) {
     noMore = true;
     loadMoreBtn.style.display = "none";
@@ -63,7 +61,7 @@ async function loadBookmarks(initial = false) {
       deletedBox.style.justifyContent = 'space-between';
       deletedBox.style.alignItems = 'center';
       deletedBox.innerHTML = `
-        <i style="color:gray;">This wint is unavailable</i>
+        <i style="color:gray;">This Wynt is unavailable</i>
         <img src="/image/trash.svg" alt="Remove" style="width: 20px; height: 20px; cursor: pointer; margin-left: 10px;">
       `;
       const trashIcon = deletedBox.querySelector('img');
