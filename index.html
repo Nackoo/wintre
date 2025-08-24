@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -89,13 +90,13 @@
       <br><label class="button" for="banner-input">upload a file</label>
 
       <br><br><br>
-      <button onclick="window.open('/user/tos', '_blank', 'noopener')" style="background:var(--light);width:100%;padding:0 15px;border-radius:10px;border:var(--border);display:flex;gap:8px;align-items:center;">
+      <button id="tosbtn" onclick="window.open('/user/tos', '_blank', 'noopener')" style="background:var(--light);width:100%;padding:0 15px;border-radius:10px;border:var(--border);display:flex;gap:8px;align-items:center;">
         <img src="/image/arrow-up.svg">
         <p style="color:var(--color);">Wyntr ToS</p>
       </button>
       <br>
       <div class="flex">
-        <button id="logout">logout</button>
+        <button id="logout"><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H8m12 0-4 4m4-4-4-4M9 4H7a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h2"/></svg> logout</button>
         <button style="margin-left: auto;" id="save-profile-changes">save changes</button>
       </div>
       <br><br><br>
@@ -297,22 +298,145 @@
   </div>
 
   <div class="smallbar">
-    <img src="/image/home-filled.svg">
-    <img src="/image/home.svg" class="hidden">
-    <img src="/image/bookmark.svg">
-    <img src="/image/bookmark-filled.svg" class="hidden">
-    <img src="/image/user.svg">
-    <img src="/image/user-filled.svg" class="hidden">
-    <img src="/image/search.svg">
-    <img src="/image/search-filled.svg" class="hidden">
-    <div id="notifsvg">
-      <img src="/image/notification.svg" style="margin:0">
-      <div id="unread"></div>
+    <div id="homefilled" class="flexx">
+      <div class="svg">
+        <img src="/image/home-filled.svg">
+      </div>
+      <div class="display">
+        <b>Home</b>
+      </div>
     </div>
 
-    <img src="/image/notification-filled.svg" class="hidden">
-    <img src="/image/settings.svg">
-    <img src="/image/settings-filled.svg" class="hidden">
+    <div id="homesvg" class="flexx hidden">
+      <div class="svg">
+        <img src="/image/home.svg">
+      </div>
+      <div class="display">
+        Home
+      </div>
+    </div>
+
+    <div id="bookmarksvg" class="flexx">
+      <div class="svg">
+        <img src="/image/bookmark.svg">
+      </div>
+      <div class="display">
+        Bookmarks
+      </div>
+    </div>
+
+    <div id="bookmarkfilled" class="flexx hidden">
+      <div class="svg">
+        <img src="/image/bookmark-filled.svg">
+      </div>
+      <div class="display">
+        <b>Bookmarks</b>
+      </div>
+    </div>
+
+    <div id="usersvg" class="flexx">
+      <div class="svg">
+        <img src="/image/user.svg">
+      </div>
+      <div class="display">
+        Profile
+      </div>
+    </div>
+
+    <div id="userfilled" class="flexx hidden">
+      <div class="svg">
+        <img src="/image/user-filled.svg">
+      </div>
+      <div class="display">
+        <b>Profile</b>
+      </div>
+    </div>
+
+    <div id="searchsvg" class="flexx">
+      <div class="svg">
+        <img src="/image/search.svg">
+      </div>
+      <div class="display">
+        Search
+      </div>
+    </div>
+
+    <div id="searchfilled" class="flexx hidden">
+      <div class="svg">
+        <img src="/image/search-filled.svg">
+      </div>
+      <div class="display">
+        <b>Search</b>
+      </div>
+    </div>
+
+    <div id="notifsvg1" class="flexx">
+      <div class="svg">
+        <img src="/image/notification.svg" style="margin:0">
+        <div id="unread"></div>
+      </div>
+      <div class="display">
+        Notification
+      </div>
+    </div>
+
+    <div id="notiffilled" class="flexx hidden">
+      <div class="svg">
+        <img src="/image/notification-filled.svg">
+      </div>
+      <div class="display">
+        <b>Notification</b>
+      </div>
+    </div>
+
+    <div id="settingssvg" class="flexx">
+      <div class="svg">
+        <img src="/image/settings.svg">
+      </div>
+      <div class="display">
+        Settings
+      </div>
+    </div>
+
+    <div id="settingsfilled" class="flexx hidden">
+      <div class="svg">
+        <img src="/image/settings-filled.svg">
+      </div>
+      <div class="display">
+        <b>Settings</b>
+      </div>
+    </div>
+
+    <button id="termsbtn" style="background:none;color:var(--color);display:flex;align-items:center;padding:0;" onclick="document.getElementById('tosbtn').click()">
+    <div class="flexx" style="width:100%;display:flex;align-items:center;margin:10px;;border-radius:10px;margin-top:0;font-size:15px;">
+      <img src="/image/arrow-up.svg">
+      Terms of Service
+    </div>
+    </button>
+
+    <button id="tweetbtn" style="background:none;color:var(--color);display:flex;align-items:center;" onclick="document.getElementById('post').click()">
+    <div class="flexx" style="font-size:15px;background:white;width:100%;color:black;display:flex;justify-content:center;margin-bottom:5px;margin-top:0;">  
+        Wynt
+    </div>
+    </button>
+  </div>
+
+  <div class="smallbar2 hidden">
+
+    <button style="background:none;color:var(--color);display:flex;align-items:center;margin:3px;" onclick="if (confirm('are you sure you want to log out?'))document.getElementById('logout').click()">
+    <div class="flexx" style="width:100%;display:flex;align-items:center;margin:0;border-radius:10px;border:1px solid #db1d23;color:#db1d23">
+      <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H8m12 0-4 4m4-4-4-4M9 4H7a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h2"/></svg>
+      <b>Logout</b>
+    </div>
+    </button>
+  </div>
+
+  <div class="smallbar1">
+    <div id="account" class="flexx" style="display:flex;align-items:center;gap:15px;">
+      <img class="account-avatar" style="border-radius:50%;height:40px;width:40px;">
+      <div class="account-name" style="font-size:15px;margin:0;"></div>
+      <img src="/image/angle.svg" style="margin-left:auto;transition:transform 0.2s ease;">
+    </div>
   </div>
 
   <script type="module" src="/script/main.js"></script>
@@ -324,6 +448,7 @@
   <script type="module" src="/script/notification.js"></script>
   <script type="module" src="/script/nonsense.js"></script>
   <script type="module" src="/script/attachments.js"></script>
+  <script type="module" src="/script/settings.js"></script>
   <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.10.0/dist/ffmpeg.min.js"></script>
 
 </body>
