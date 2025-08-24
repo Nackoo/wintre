@@ -488,85 +488,155 @@ document.getElementById("commentMediaInput").addEventListener("change", () => {
   showImagePreview(document.getElementById("commentMediaInput"), "commentPreview");
 });
 
-const mediaInput = document.getElementById('mediaInput');
-const attachment = document.getElementById('tweetPreview');
+async function handleMediaInput(e, previewEl) {
+  const files = Array.from(e.target.files);
+  previewEl.innerHTML = "";
+  previewEl.style.position = "relative";
+  previewEl.style.marginBottom = "20px";
 
-document.getElementById('mediaInput').addEventListener('change', function(e) {
-  const file = e.target.files[0];
-  attachment.innerHTML = '';
-  attachment.style.position = 'relative';
-  attachment.style.marginBottom = '20px';
+  const videos = files.filter(f => f.type.startsWith("video/"));
+  const images = files.filter(f => f.type.startsWith("image/"));
 
-  if (file) {
-    const maxSize = 3.5 * 1024 * 1024;
+  if (videos.length > 1) {
+    alert("videos can't be inserted more than one");
+    return;
+  }
+  if (images.length > 4) {
+    alert("maximum image inserted is 4");
+    return;
+  }
+
+  if (videos.length > 0 && images.length > 0) {
+    alert("You can't upload videos and images together");
+    return;
+  }
+
+  files.forEach(file => {
     const sizeInMB = (file.size / (1024 * 1024)).toFixed(2);
-
-    const sizeCounter = document.createElement('div');
-    sizeCounter.style.position = 'absolute';
-    sizeCounter.style.top = '10px';
-    sizeCounter.style.left = '10px';
-    sizeCounter.style.background = 'rgba(0,0,0,0.6)';
-    sizeCounter.style.color = 'white';
-    sizeCounter.style.padding = '2px 6px';
-    sizeCounter.style.borderRadius = '4px';
-    sizeCounter.style.fontSize = '12px';
-    sizeCounter.style.zIndex = '10';
+    const sizeCounter = document.createElement("div");
+    sizeCounter.style.position = "absolute";
+    sizeCounter.style.top = "10px";
+    sizeCounter.style.left = "10px";
+    sizeCounter.style.background = "rgba(0,0,0,0.6)";
+    sizeCounter.style.color = "white";
+    sizeCounter.style.padding = "2px 6px";
+    sizeCounter.style.borderRadius = "4px";
+    sizeCounter.style.fontSize = "12px";
+    sizeCounter.style.zIndex = "10";
     sizeCounter.textContent = `${sizeInMB} MB`;
+    previewEl.appendChild(sizeCounter);
+  });
 
-    if (file.size > maxSize) {
-      sizeCounter.style.background = '#db1d23';
-      attachment.appendChild(sizeCounter);
+  if (videos.length === 1) {
+    const file = videos[0];
+    const videoEl = document.createElement("video");
+    videoEl.src = URL.createObjectURL(file);
+    videoEl.controls = true;
+    videoEl.style.maxWidth = "100%";
+    videoEl.style.maxHeight = "333px";
+    previewEl.appendChild(videoEl);
+  }
+
+  for (const file of images) {
+    const img = document.createElement("img");
+    img.src = URL.createObjectURL(file);
+    img.style.maxWidth = "100%";
+    img.style.maxHeight = "200px";
+    img.style.margin = "5px";
+    previewEl.appendChild(img);
+  }
+
+  if (images.length > 1) {
+    const compressedBase64s = await Promise.all(images.map(f => compressImageTo480(f)));
+    const collageBase64 = await makeCollage(compressedBase64s);
+    console.log("Collage ready for upload:", collageBase64);
+  }
+}
+
+async function makeCollage(base64Images) {
+  return new Promise((resolve, reject) => {
+    const images = [];
+    let loaded = 0;
+
+    base64Images.forEach((src, i) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        images[i] = img;
+        loaded++;
+        if (loaded === base64Images.length) {
+          buildCollage(images);
+        }
+      };
+      img.onerror = reject;
+      img.src = src;
+    });
+
+    function buildCollage(images) {
+      let canvas = document.createElement("canvas");
+      let ctx = canvas.getContext("2d");
+
+      if (images.length === 2) {
+        canvas.width = 960;
+        canvas.height = 480;
+        images.forEach((img, idx) => {
+          const x = idx * 480;
+          const y = 0;
+          drawKeepAspect(ctx, img, x, y, 480, 480);
+        });
+      } else if (images.length === 3) {
+        canvas.width = 960;
+        canvas.height = 960;
+        drawKeepAspect(ctx, images[0], 0, 0, 480, 480);
+        drawKeepAspect(ctx, images[1], 480, 0, 480, 480);
+        drawKeepAspect(ctx, images[2], 240, 480, 480, 480);
+      } else if (images.length === 4) {
+        canvas.width = 960;
+        canvas.height = 960;
+        let positions = [
+          [0, 0], [480, 0],
+          [0, 480], [480, 480]
+        ];
+        images.forEach((img, i) => {
+          const [x, y] = positions[i];
+          drawKeepAspect(ctx, img, x, y, 480, 480);
+        });
+      } else {
+        canvas.width = 480;
+        canvas.height = 480;
+        drawKeepAspect(ctx, images[0], 0, 0, 480, 480);
+      }
+
+      resolve(canvas.toDataURL("image/jpeg", 0.9));
     }
 
-    attachment.appendChild(sizeCounter);
+    function drawKeepAspect(ctx, img, x, y, w, h) {
+      const imgRatio = img.width / img.height;
+      const boxRatio = w / h;
 
-    const preview = document.createElement(file.type.startsWith('video') ? 'video' : 'img');
-    preview.src = URL.createObjectURL(file);
-    preview.style.maxWidth = '100%';
-    preview.style.maxHeight = '333px';
-    preview.controls = file.type.startsWith('video');
-    attachment.appendChild(preview);
-  }
-});
+      let drawW, drawH;
+      if (imgRatio > boxRatio) {
+        drawH = h;
+        drawW = img.width * (h / img.height);
+      } else {
+        drawW = w;
+        drawH = img.height * (w / img.width);
+      }
 
-const mediaInput1 = document.getElementById('retweetMedia-TWEETID');
-const attachment1 = document.getElementById('retweetPreview-TWEETID');
+      const offsetX = x + (w - drawW) / 2;
+      const offsetY = y + (h - drawH) / 2;
 
-mediaInput1.addEventListener('change', function(e) {
-  const file = e.target.files[0];
-  attachment1.innerHTML = '';
-  attachment1.style.position = 'relative';
-  attachment1.style.marginBottom = '20px';
-
-  if (file) {
-    const maxSize = 3.5 * 1024 * 1024;
-    const sizeInMB = (file.size / (1024 * 1024)).toFixed(2);
-    const sizeCounter = document.createElement('div');
-    sizeCounter.style.position = 'absolute';
-    sizeCounter.style.top = '10px';
-    sizeCounter.style.left = '10px';
-    sizeCounter.style.background = 'rgba(0,0,0,0.6)';
-    sizeCounter.style.color = 'white';
-    sizeCounter.style.padding = '2px 6px';
-    sizeCounter.style.borderRadius = '4px';
-    sizeCounter.style.fontSize = '12px';
-    sizeCounter.style.zIndex = '10';
-    sizeCounter.textContent = `${sizeInMB} MB`;
-
-    if (file.size > maxSize) {
-      sizeCounter.style.background = '#db1d23';
-      attachment1.appendChild(sizeCounter);
+      ctx.drawImage(img, offsetX, offsetY, drawW, drawH);
     }
+  });
+}
 
-    attachment1.appendChild(sizeCounter);
-
-    const preview = document.createElement(file.type.startsWith('video') ? 'video' : 'img');
-    preview.src = URL.createObjectURL(file);
-    preview.style.maxWidth = '100%';
-    preview.style.maxHeight = '333px';
-    preview.controls = file.type.startsWith('video');
-    attachment1.appendChild(preview);
-  }
+document.getElementById("mediaInput").addEventListener("change", (e) => {
+  handleMediaInput(e, document.getElementById("tweetPreview"));
 });
 
-export { uploadToSupabase, compressImageTo480, showImagePreview, readFileAsBase64, setupVideoAutoplayOnVisibility, getSupabaseVideo, getSafeFilename, downloadFile }
+document.getElementById("retweetMedia-TWEETID").addEventListener("change", (e) => {
+  handleMediaInput(e, document.getElementById("retweetPreview-TWEETID"));
+});
+
+export { uploadToSupabase, compressImageTo480, showImagePreview, readFileAsBase64, setupVideoAutoplayOnVisibility, getSupabaseVideo, getSafeFilename, downloadFile, makeCollage }
