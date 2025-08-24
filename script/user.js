@@ -252,9 +252,8 @@ async function loadTweets(uid) {
 }
 
 loadMore.addEventListener("click", async () => {
-  const term = searchInput.value.trim();
-  const more = await searchTweets(term, false);
-  appendTweetList(more);
+  const uid = document.getElementById("user-name").dataset.uid;
+  loadTweets(uid);
 });
 
 const mloadMore = document.getElementById("mLoadMore");
