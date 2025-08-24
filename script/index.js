@@ -3,7 +3,7 @@ import { extractMentions } from './mention.js';
 import { handleTags } from './tags.js';
 import { sendCommentNotification, sendReplyNotification, listenForUnreadNotifications, loadNotifications, sendMentionNotification, sendRetweetNotification, sendReplyMentionNotification, sendCommentMentionNotification } from './notification.js';
 import { createClient, SUPABASE_URL, SUPABASE_ANON_KEY, MAX_FILE_BYTES, supabase } from "./firebase.js";
-import { uploadToSupabase, compressImageTo480, readFileAsBase64, setupVideoAutoplayOnVisibility, getSupabaseVideo, getSafeFilename, downloadFile } from "./attachments.js";
+import { uploadToSupabase, compressImageTo480, readFileAsBase64, setupVideoAutoplayOnVisibility, getSupabaseVideo, getSafeFilename, downloadFile, makeCollage } from "./attachments.js";
 import { bookmark, profile, profilesub, user, usersub, tag, viewer, tweet, retweet, notification, comment, bookmarksvg, homesvg, usersvg, searchsvg, settingssvg, notifsvg, bookmarkfilled, homefilled, userfilled, searchfilled, settingsfilled, notiffilled } from "./nonsense.js"
 import { viewTweet } from "./tweetViewer.js";
 import { tokenize, formatDate, linkify, applyReadMoreLogic, parseMentionsToLinks, escapeHTML } from "./texts.js";
@@ -56,7 +56,7 @@ async function loadFollowing(uid) {
 
 onAuthStateChanged(auth, async (user) => {
   if (user) {
-    await loadFollowing(user.uid); 
+    await loadFollowing(user.uid);
     loadTweets(true);
     renderTweets(user);
     loadNotifications(true);
@@ -175,25 +175,57 @@ document.getElementById("postBtn").addEventListener("click", async () => {
 
   const text = document.getElementById("tweetInput").value.trim();
   const fileInput = document.getElementById("mediaInput");
-  const file = fileInput.files[0];
-
-  if (file && file.size > 3.5 * 1024 * 1024) {
-    alert("File size exceeds 3.5MB. Please choose a smaller file.");
-    btn.disabled = false;
-    btn.classList.remove('disabled');
-    return;
-  }
+  const files = Array.from(fileInput.files);
 
   let mediaURL = "";
   let mediaType = "";
   let mediaPath = "";
 
   try {
-    if (file) {
-      const upload = await uploadToSupabase(file, user.uid);
-      mediaURL = upload.url;
-      mediaType = upload.type;
-      mediaPath = upload.path || "";
+    if (files.length > 0) {
+      const videos = files.filter(f => f && f.type && f.type.startsWith("video/"));
+      const images = files.filter(f => f && f.type && f.type.startsWith("image/"));
+
+      if (videos.length > 1) {
+        alert("videos can't be inserted more than one");
+        return;
+      }
+      if (images.length > 4) {
+        alert("maximum image inserted is 4");
+        return;
+      }
+
+      if (videos.length === 1) {
+        // upload single video
+        const upload = await uploadToSupabase(videos[0], user.uid);
+        mediaURL = upload.url;
+        mediaType = "video";
+        mediaPath = upload.path || "";
+      } else if (images.length > 0) {
+        const compressedBase64s = await Promise.all(images.map(f => compressImageTo480(f)));
+
+        let finalFile;
+        if (images.length > 1) {
+          const collageBase64 = await makeCollage(compressedBase64s);
+          const res = await fetch(collageBase64);
+          finalFile = await res.blob();
+          finalFile = new File([finalFile], "collage.jpg", {
+            type: "image/jpeg"
+          });
+        } else {
+          const res = await fetch(compressedBase64s[0]);
+          finalFile = await res.blob();
+          finalFile = new File([finalFile], "image.jpg", {
+            type: "image/jpeg"
+          });
+        }
+
+        const upload = await uploadToSupabase(finalFile, user.uid);
+        mediaURL = upload.url;
+        mediaType = "image";
+        mediaPath = upload.path || "";
+      }
+
     }
 
     if (!text && !mediaURL) {
@@ -656,13 +688,13 @@ document.body.addEventListener("click", async (e) => {
   const data = tweetSnap.data();
 
   if (data.retweetOf) {
-  const originalRef = doc(db, "tweets", data.retweetOf);
-  const originalSnap = await getDoc(originalRef);
+    const originalRef = doc(db, "tweets", data.retweetOf);
+    const originalSnap = await getDoc(originalRef);
 
-  if (originalSnap.exists()) {
-    await updateDoc(originalRef, {
-      retweetCount: increment(-1)
-    });
+    if (originalSnap.exists()) {
+      await updateDoc(originalRef, {
+        retweetCount: increment(-1)
+      });
     } else {
       console.warn("Original tweet already deleted, skipping retweetCount decrement");
     }
@@ -795,13 +827,13 @@ async function loadTweets(initial = false, direction = "down", count = 15) {
 
   let baseQuery;
   if (direction === "down") {
-    baseQuery = newestSnapshotNewest
-      ? query(tweetsRef, orderBy("createdAt", "desc"), startAfter(newestSnapshotNewest), limit(count))
-      : query(tweetsRef, orderBy("createdAt", "desc"), limit(count));
+    baseQuery = newestSnapshotNewest ?
+      query(tweetsRef, orderBy("createdAt", "desc"), startAfter(newestSnapshotNewest), limit(count)) :
+      query(tweetsRef, orderBy("createdAt", "desc"), limit(count));
   } else {
-    baseQuery = oldestSnapshotNewest
-      ? query(tweetsRef, orderBy("createdAt", "asc"), startAfter(oldestSnapshotNewest), limit(count))
-      : query(tweetsRef, orderBy("createdAt", "asc"), limit(count));
+    baseQuery = oldestSnapshotNewest ?
+      query(tweetsRef, orderBy("createdAt", "asc"), startAfter(oldestSnapshotNewest), limit(count)) :
+      query(tweetsRef, orderBy("createdAt", "asc"), limit(count));
   }
 
   const snap = await getDocs(baseQuery);
@@ -827,7 +859,7 @@ async function loadTweets(initial = false, direction = "down", count = 15) {
   console.table(tweetObjs.map(t => ({
     id: t.id,
     uid: t.uid,
-    text: t.text?.slice(0, 30), 
+    text: t.text?.slice(0, 30),
     score: t._score.toFixed(2),
     likes: t.likeCount,
     comments: t.commentCount,
@@ -1079,7 +1111,7 @@ const smallbar2 = document.querySelector('.smallbar2');
 const arrow = document.querySelector('.smallbar1 img[src="/image/angle.svg"]');
 
 smallbar1.addEventListener('click', (e) => {
-  e.stopPropagation(); 
+  e.stopPropagation();
   if (!isOpen) {
     arrow.style.transform = 'rotate(180deg)';
     smallbar2.classList.remove('hidden');
@@ -1357,6 +1389,20 @@ function clearcomment() {
   commentMediaInput.value = '';
 }
 
+function clearretweet() {
+  document.getElementById('retweetText').value = '';
+  document.getElementById('retweetOverlay').classList.add('hidden');
+  document.getElementById('retweetMedia-TWEETID').value = '';
+  document.getElementById('retweetPreview-TWEETID').innerHTML = '';
+}
+
+function cleartweet() {
+  document.getElementById('tweetInput').value = '';
+  document.getElementById('tweetOverlay').classList.add('hidden');
+  document.getElementById('mediaInput').value = '';
+  document.getElementById('tweetPreview').innerHTML = '';
+}
+
 document.body.addEventListener("click", async (e) => {
 
   const toggleRepliesBtn = e.target.closest(".toggle-replies-btn");
@@ -1482,6 +1528,16 @@ document.body.addEventListener("click", async (e) => {
   const cancelcommentbtn = e.target.closest(".cancel-comment-btn");
   if (cancelcommentbtn) {
     clearcomment();
+  }
+
+  const cancelretweetbtn = e.target.closest("#cancelretweet");
+  if (cancelretweetbtn) {
+    clearretweet();
+  }
+
+  const canceltweetbtn = e.target.closest('#canceltweet');
+  if (canceltweetbtn) {
+    cleartweet();
   }
 
   const cancelReplyBtn = e.target.closest(".cancel-reply-btn");
@@ -1822,7 +1878,7 @@ sendRetweet.onclick = async () => {
     document.getElementById(`retweetMedia-${originalId}`) ||
     document.getElementById("retweetMedia-TWEETID");
 
-  const file = fileInput?.files?.[0];
+  const files = fileInput ? Array.from(fileInput.files) : [];
 
   const user = auth.currentUser;
   const uid = user?.uid;
@@ -1852,12 +1908,57 @@ sendRetweet.onclick = async () => {
 
   let media = "";
   let mediaType = "";
+  let mediaPath = "";
 
   try {
-    if (file) {
-      const upload = await uploadToSupabase(file, uid);
-      media = upload.url;
-      mediaType = upload.type;
+    if (files.length > 0) {
+      const videos = files.filter(f => f && f.type && f.type.startsWith("video/"));
+      const images = files.filter(f => f && f.type && f.type.startsWith("image/"));
+
+      if (videos.length > 0 && images.length > 0) {
+        alert("You can't upload videos and images together");
+        return;
+      }
+
+      if (videos.length > 1) {
+        alert("videos can't be inserted more than one");
+        return;
+      }
+
+      if (images.length > 4) {
+        alert("maximum image inserted is 4");
+        return;
+      }
+
+      if (videos.length === 1) {
+        const upload = await uploadToSupabase(videos[0], uid);
+        media = upload.url;
+        mediaType = "video";
+        mediaPath = upload.path || "";
+      } else if (images.length > 0) {
+        const compressedBase64s = await Promise.all(images.map(f => compressImageTo480(f)));
+
+        let finalFile;
+        if (images.length > 1) {
+          const collageBase64 = await makeCollage(compressedBase64s);
+          const res = await fetch(collageBase64);
+          finalFile = await res.blob();
+          finalFile = new File([finalFile], "collage.jpg", {
+            type: "image/jpeg"
+          });
+        } else {
+          const res = await fetch(compressedBase64s[0]);
+          finalFile = await res.blob();
+          finalFile = new File([finalFile], "image.jpg", {
+            type: "image/jpeg"
+          });
+        }
+
+        const upload = await uploadToSupabase(finalFile, user.uid);
+        media = upload.url;
+        mediaType = "image";
+        mediaPath = upload.path || "";
+      }
     }
 
     const mentionsRaw = await extractMentions(text);
@@ -1868,6 +1969,7 @@ sendRetweet.onclick = async () => {
       retweetOf: originalId,
       media,
       mediaType,
+      mediaPath,
       likeCount: 0,
       commentCount: 0,
       viewsCount: 0,
