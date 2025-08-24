@@ -5,10 +5,7 @@ this project is powered by firebase & supabase.
 ## preview
 
 <img src="/github assets/preview1.webp">
-
-<p align="center">
-  <img src="./github assets/preview2.webp">
-</p>
+<img src="/github assets/preview2.webp">
 
 ## firestore rules
 ```
