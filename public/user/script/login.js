@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { app, auth, db, storage } from "/script/firebase.js";
+import { app, auth, db, storage } from "./firebase.js";
 
 const provider = new GoogleAuthProvider();
 
@@ -33,3 +33,4 @@ tosCheckbox.addEventListener("change", () => {
   localStorage.setItem("tosAgreed", tosCheckbox.checked);
   errorEl.style.display = "none";
 });
+
