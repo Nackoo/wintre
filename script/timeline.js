@@ -47,13 +47,15 @@ export async function loadFollowingTweets(reset = false) {
       return { docSnap, score, uid: data.uid, text: data.text };
     })
     .sort((a, b) => b.score - a.score);
-
+  
+  /*
   console.table(followingTweetDocs.map(t => ({
     id: t.docSnap.id,
     uid: t.uid,
     text: t.text?.slice(0, 30), 
     score: t.score
   })));
+  */
 
   followingTweetDocs = followingTweetDocs.map(item => item.docSnap);
 
