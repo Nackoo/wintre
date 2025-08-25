@@ -172,8 +172,13 @@ body {
     padding-bottom: 25px;
   }
 
+  .smallbar .flexx:not(.smallbar .active) {
+    border: 1px solid black;
+  }
+
   .smallbar .active {
     background: var(--normal);
+    border: var(--border);
   }
 
   .flexx {
