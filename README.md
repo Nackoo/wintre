@@ -1,6 +1,6 @@
 <img style="width: 178px; height: 178px" src="/public/image/icon.png"><h1>Wyntr</h1>
 
-A lightweight micro-blogging social media.
+A lightweight micro-blogging social media.<br>
 This project is powered by firebase & supabase.
 
 ## preview
