@@ -116,6 +116,7 @@ function appendCompressionLog(msg) {
   }
 }
 
+// NOTE: images are stored as base64 string in firestore, doesn't go through supabase
 async function uploadToSupabase(file, uid) {
   if (!file) return { url: "", path: "", type: "" };
 
@@ -639,3 +640,4 @@ document.getElementById("retweetMedia-TWEETID").addEventListener("change", (e) =
 });
 
 export { uploadToSupabase, compressImageTo480, showImagePreview, readFileAsBase64, setupVideoAutoplayOnVisibility, getSupabaseVideo, getSafeFilename, downloadFile, makeCollage }
+
