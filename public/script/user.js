@@ -57,17 +57,15 @@ document.querySelectorAll(".tab1").forEach(tab1 => {
         fetchTags("");
         a = true;
       }
-    } 
-    else if (tabTarget === "usersView") {
+    } else if (tabTarget === "usersView") {
       if (term) {
-        fetchUsers(true, term);   
+        fetchUsers(true, term);
         b = false;
       } else if (!b) {
-        fetchUsers(true, "");  
+        fetchUsers(true, "");
         b = true;
       }
-    }
-    else if (tabTarget === "tweetsView") {
+    } else if (tabTarget === "tweetsView") {
       resetTweetSearch();
       if (term.length >= 3) {
         tweetsView.innerHTML = "";
@@ -273,62 +271,79 @@ async function fetchUsers(reset = false, term = "") {
   }
 
   const selfUID = auth.currentUser?.uid;
-  const q = lastUserDoc ?
-    query(collection(db, "users"), orderBy("displayName"), startAfter(lastUserDoc), limit(10)) :
-    query(collection(db, "users"), orderBy("displayName"), limit(10));
+  let snap;
 
-  const snap = await getDocs(q);
-  lastUserDoc = snap.docs[snap.docs.length - 1];
+  if (term) {
+    const lowerTerm = term.toLowerCase();
 
-  const filtered = snap.docs.filter(doc => {
-    const data = doc.data();
-    if (!term) return doc.id !== selfUID;
-    return doc.id !== selfUID && data.displayName?.toLowerCase().includes(term.toLowerCase());
-  });
+    const q = query(
+      collection(db, "users"),
+      where("username", ">=", lowerTerm),
+      where("username", "<=", lowerTerm + "\uf8ff"),
+      limit(10)
+    );
+    snap = await getDocs(q);
 
-  if (filtered.length === 0 && totalLoaded === 0) {
-    usersView.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="/image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
+  } else {
+    const q = lastUserDoc ?
+      query(collection(db, "users"), orderBy("username"), startAfter(lastUserDoc), limit(10)) :
+      query(collection(db, "users"), orderBy("username"), limit(10));
+    snap = await getDocs(q);
+    if (!snap.empty) {
+      lastUserDoc = snap.docs[snap.docs.length - 1];
+    }
+  }
+
+  if (snap.empty && totalLoaded === 0) {
+    usersView.innerHTML = `
+      <div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;">
+        <img style="height:250px;width:250px;" src="/image/404.gif">
+      </div>
+      <h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
     isFetching = false;
     return;
   }
 
-  for (const docSnap of filtered) {
+  for (const docSnap of snap.docs) {
     const data = docSnap.data();
-    const targetId = docSnap.id;
+    if (docSnap.id === selfUID) continue;
 
+    const displayName = data.displayName || "Unnamed";
     const desc = data.description || "wsg homie?";
     const shortDesc = desc.length > 60 ? desc.slice(0, 60) + "..." : desc;
 
     const item = document.createElement("div");
     item.className = "user-search-item";
-    item.style.cssText = "display:flex;gap:10px;padding:15px 0 10px 0;border-bottom:var(--border);align-items:center";
+    item.style.cssText =
+      "display:flex;gap:10px;padding:15px 0 10px 0;border-bottom:var(--border);align-items:center";
 
     item.innerHTML = `
-<img src="${data.photoURL}" onerror="this.src='/image/default-avatar.jpg'"
-     style="width:40px;height:40px;border-radius:50%;object-fit:cover;align-self:flex-start;">
-<div style="flex:1">
-  <div style="display:flex;align-items:center;">
-    <strong style="cursor:pointer;">${escapeHTML(data.displayName || "Unnamed")}</strong>
-    <button class="mini-follow-btn"
-            style="padding:0 10px;border-radius:50px;background:white;height:26px;cursor:pointer;border:1px solid var(--border);margin-left:auto;">
-      ...
-    </button>
-  </div>
-  <p style="margin:5px 0;color:grey;font-size:15px;">${escapeHTML(shortDesc)}</p>
-</div>`;
+      <img src="${data.photoURL}" onerror="this.src='/image/default-avatar.jpg'"
+           style="width:40px;height:40px;border-radius:50%;object-fit:cover;align-self:flex-start;">
+      <div style="flex:1">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <strong style="cursor:pointer;">${escapeHTML(displayName)}</strong>
+          <button class="mini-follow-btn"
+                  style="padding:0 10px;border-radius:50px;background:white;height:26px;cursor:pointer;border:1px solid var(--border);margin-left:auto;">
+            ...
+          </button>
+        </div>
+        <p style="margin:5px 0;color:grey;font-size:15px;">${escapeHTML(shortDesc)}</p>
+      </div>`;
 
     const btn = item.querySelector(".mini-follow-btn");
-    await setupMiniFollowBtn(btn, targetId);
+    await setupMiniFollowBtn(btn, docSnap.id);
 
     item.addEventListener("click", (e) => {
       if (!e.target.classList.contains("mini-follow-btn")) {
-        openUserSubProfile(targetId);
+        openUserSubProfile(docSnap.id);
       }
     });
 
     usersView.appendChild(item);
     totalLoaded++;
   }
+
   isFetching = false;
 }
 
