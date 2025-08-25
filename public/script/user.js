@@ -353,54 +353,64 @@ export async function fetchTags(term) {
   const tagsRef = collection(db, "tags");
 
   if (!term || term.length < 1) {
-    const allTagsSnap = await getDocs(tagsRef);
+    const q = query(tagsRef, orderBy("tweetCount", "desc"), limit(10));
+    const snap = await getDocs(q);
 
-    const tagCounts = allTagsSnap.docs.map(docSnap => ({
-      id: docSnap.id,
-      count: docSnap.data().tweetCount || 0
-    }));
-
-    const topTags = tagCounts
-      .filter(tag => tag.count > 0)
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 10);
-
-    if (topTags.length === 0) {
-      tagsView.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="/image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
+    if (snap.empty) {
+      tagsView.innerHTML = `
+        <div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;">
+          <img style="height:250px;width:250px;" src="/image/404.gif">
+        </div>
+        <h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
       return;
     }
 
-    for (const tag of topTags) {
+    for (const tagDoc of snap.docs) {
+      const tagId = tagDoc.id;
+      const count = tagDoc.data().tweetCount || 0;
+
       const item = document.createElement("div");
       item.className = "tag-search-item";
-      item.innerHTML = `<div style="display:flex;align-items:center;"><strong style="color:#00ba7c;">#${tag.id}</strong> <p style="color:var(--color);margin-left:auto;font-size:15px;">${tag.count} Wynts</p></div>`;
+      item.innerHTML = `
+        <div style="display:flex;align-items:center;">
+          <strong style="color:#00ba7c;">#${tagId}</strong>
+          <p style="color:var(--color);margin-left:auto;font-size:15px;">${count} Wynts</p>
+        </div>`;
       item.style.cssText = "border-bottom:var(--border);cursor:pointer;";
-      item.onclick = () => openTag(tag.id);
+      item.onclick = () => openTag(tagId);
       tagsView.appendChild(item);
     }
-
     return;
   }
 
   const q = query(
     tagsRef,
     where("name", ">=", term),
-    where("name", "<=", term + "\uf8ff")
+    where("name", "<=", term + "\uf8ff"),
+    limit(10)
   );
   const snap = await getDocs(q);
 
   if (snap.empty) {
-    tagsView.innerHTML = `<div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;"><img style="height:250px;width:250px;" src="/image/404.gif"></div><h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
+    tagsView.innerHTML = `
+      <div style="display:flex;justify-content:center;margin-top:30px;opacity:0.7;">
+        <img style="height:250px;width:250px;" src="/image/404.gif">
+      </div>
+      <h4 style="text-align:center;">there’s nothing to see here — yet</h4>`;
     return;
   }
 
-  for (const tagDoc of snap.docs.slice(0, 10)) {
+  for (const tagDoc of snap.docs) {
     const tagId = tagDoc.id;
-    const tweetCount = tagDoc.data().tweetCount || 0;
+    const count = tagDoc.data().tweetCount || 0;
 
     const item = document.createElement("div");
     item.className = "tag-search-item";
-    item.innerHTML = `<div style="display:flex;align-items:center"><strong style="color:#00ba7c;">#${tagId}</strong> <p style="color:var(--color);margin-left:auto;font-size:15px;">${tweetCount} Wynts</p></div>`;
+    item.innerHTML = `
+      <div style="display:flex;align-items:center;">
+        <strong style="color:#00ba7c;">#${tagId}</strong>
+        <p style="color:var(--color);margin-left:auto;font-size:15px;">${count} Wynts</p>
+      </div>`;
     item.style.cssText = "border-bottom:var(--border);cursor:pointer;";
     item.onclick = () => openTag(tagId);
     tagsView.appendChild(item);
