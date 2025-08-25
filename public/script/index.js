@@ -77,65 +77,64 @@ onAuthStateChanged(auth, async (user) => {
       if (data.photoURL) photoURL = data.photoURL;
     }
 
-    if (avatarEl) {
-      avatarEl.src = photoURL;
-    }
-    if (nameEl) {
-      nameEl.textContent = displayName;
-    }
+    if (avatarEl) avatarEl.src = photoURL;
+    if (nameEl) nameEl.textContent = displayName;
 
     if (!snap.exists()) {
-
       const rawName = user.displayName || "user";
       const baseName = rawName.replace(/[^a-zA-Z0-9._-]/g, "") || "user";
 
-      let finalName = baseName;
+      let finalUsername = baseName.toLowerCase();
       let suffix = 1;
 
       while (suffix <= 100) {
-        const querySnapshot = await getDocs(query(collection(db, "users"), where("displayName", "==", finalName)));
-        if (querySnapshot.empty) {
-          break;
-        }
-        finalName = `${baseName}${suffix}`;
+        const querySnapshot = await getDocs(
+          query(collection(db, "users"), where("username", "==", finalUsername))
+        );
+        if (querySnapshot.empty) break;
+        finalUsername = `${baseName}${suffix}`.toLowerCase();
         suffix++;
       }
+
       await setDoc(ref, {
-        displayName: finalName,
+        displayName: rawName,           
+        username: finalUsername,       
         createdAt: new Date(),
-        posts: 0
+        posts: 0,
+        photoURL
       });
+
     } else {
       const data = snap.data();
       const updateData = {};
-      if (!data.createdAt) {
-        updateData.createdAt = new Date();
-      }
-      if (!data.photoURL) {
-        updateData.photoURL = '/image/default-avatar.jpg';
-      }
-      if (!("posts" in data)) {
-        updateData.posts = 0;
-      }
-      if (!("displayName" in data)) {
-        const rawName = user.displayName || "user";
-        const baseName = rawName.replace(/[^a-zA-Z0-9._-]/g, "") || "user";
-        let finalName = baseName;
+
+      if (!data.createdAt) updateData.createdAt = new Date();
+      if (!data.photoURL) updateData.photoURL = "/image/default-avatar.jpg";
+      if (!data.username) {
+
+        const baseName = (data.displayName || "user")
+          .replace(/[^a-zA-Z0-9._-]/g, "")
+          .toLowerCase() || "user";
+
+        let finalUsername = baseName;
         let suffix = 1;
+
         while (suffix <= 100) {
-          const querySnapshot = await getDocs(query(collection(db, "users"), where("displayName", "==", finalName)));
-          if (querySnapshot.empty) {
-            break;
-          }
-          finalName = `${baseName}${suffix}`;
+          const querySnapshot = await getDocs(
+            query(collection(db, "users"), where("username", "==", finalUsername))
+          );
+          if (querySnapshot.empty) break;
+          finalUsername = `${baseName}${suffix}`.toLowerCase();
           suffix++;
         }
-        updateData.displayName = finalName;
+
+        updateData.username = finalUsername;
       }
+      if (!("posts" in data)) updateData.posts = 0;
+      if (!("displayName" in data)) updateData.displayName = "user";
+
       if (Object.keys(updateData).length > 0) {
-        await setDoc(ref, updateData, {
-          merge: true
-        });
+        await setDoc(ref, updateData, { merge: true });
       }
     }
   } else {
