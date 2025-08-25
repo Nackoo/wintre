@@ -549,7 +549,6 @@ async function handleMediaInput(e, previewEl) {
   if (images.length > 1) {
     const compressedBase64s = await Promise.all(images.map(f => compressImageTo480(f)));
     const collageBase64 = await makeCollage(compressedBase64s);
-    console.log("Collage ready for upload:", collageBase64);
   }
 }
 
