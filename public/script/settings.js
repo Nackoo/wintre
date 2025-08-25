@@ -196,6 +196,7 @@ saveButton.addEventListener("click", async () => {
   const userRef = doc(db, "users", uid);
   await setDoc(userRef, {
     displayName: newName,
+    username: newName.toLowerCase(),
     description: newDescription,
     banner: newBanner,
     photoURL: newAvatar,
